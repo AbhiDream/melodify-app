@@ -1,0 +1,17 @@
+{
+  "name": "Melodify",
+  "short_name": "Melodify",
+  "description": "The Ultimate AI-Powered Music Player",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d0d0f",
+  "theme_color": "#a855f7",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
