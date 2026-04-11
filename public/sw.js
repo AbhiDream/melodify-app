@@ -1,4 +1,4 @@
-const CACHE_NAME = 'melodify-v1';
+const CACHE_NAME = 'melodify-v2';
 const ASSETS = [
   '/',
   '/index.html',
@@ -15,7 +15,8 @@ self.addEventListener('install', (e) => {
 
 self.addEventListener('fetch', (e) => {
   // Only intercept static assets and navigation, bypass API and chunks
-  if (!e.request.url.includes('/api') && !e.request.url.includes('/chunk') && !e.request.url.includes('youtube') && e.request.method === 'GET') {
+  const u = e.request.url;
+  if (!u.includes('/api') && !u.includes('/chunk') && !u.includes('youtube') && !u.includes('/search') && !u.includes('/trending') && e.request.method === 'GET') {
     e.respondWith(
       caches.match(e.request).then((res) => {
         return res || fetch(e.request).then((fetchRes) => {
