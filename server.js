@@ -27,6 +27,23 @@ if (SELF_URL) {
 }
 app.get('/health', (req, res) => res.send('OK'));
 
+// Debug endpoint - check if yt-dlp works on this server
+app.get('/debug', (req, res) => {
+  exec('yt-dlp --version', (err, stdout) => {
+    const version = err ? `ERROR: ${err.message}` : stdout.trim();
+    // Try a simple search
+    exec('yt-dlp "ytsearch1:test" --dump-json --no-download --flat-playlist', { timeout: 30000 }, (err2, stdout2, stderr2) => {
+      res.json({
+        yt_dlp_version: version,
+        search_test: err2 ? `FAILED: ${err2.message}` : 'OK',
+        search_stderr: stderr2 ? stderr2.slice(0, 500) : '',
+        search_got_result: !err2 && !!stdout2.trim()
+      });
+    });
+  });
+});
+
+
 
 const CHUNK_DIR = path.join(__dirname, "chunks");
 if (!fs.existsSync(CHUNK_DIR)) fs.mkdirSync(CHUNK_DIR);
