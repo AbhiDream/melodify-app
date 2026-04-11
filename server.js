@@ -9,7 +9,24 @@ const http = require("http");
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, "public")));
+
+// Serve manifest with correct MIME type (required for PWA install prompt)
+app.get('/manifest.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/manifest+json');
+  res.sendFile(path.join(__dirname, 'public', 'manifest.json'));
+});
+
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Keep-alive ping — prevents Render free tier from sleeping
+const SELF_URL = process.env.RENDER_EXTERNAL_URL;
+if (SELF_URL) {
+  setInterval(() => {
+    http.get(`${SELF_URL}/health`).on('error', () => {});
+  }, 8 * 60 * 1000); // ping every 8 minutes
+}
+app.get('/health', (req, res) => res.send('OK'));
+
 
 const CHUNK_DIR = path.join(__dirname, "chunks");
 if (!fs.existsSync(CHUNK_DIR)) fs.mkdirSync(CHUNK_DIR);
