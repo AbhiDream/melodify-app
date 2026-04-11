@@ -779,13 +779,14 @@ a{color:inherit;text-decoration:none}
   .nav-item{justify-content:center;padding:12px}
   .pl-right .buf-status{display:none}
 }
-@media(max-width:700px){
-  .shell{grid-template-columns:1fr}
+@media(max-width:768px){
+  .shell{
+    grid-template-columns:1fr;
+    grid-template-rows:1fr auto;
+    padding:0;
+    gap:0;
+  }
   .sidebar{display:none}
-  .tlist-header,.tr-album,.tr-more{display:none}
-  .track-row{grid-template-columns:40px 40px 1fr 50px 32px}
-  .pl-right{display:none}
-  .pl-left{width:50%}
 }
 /* ════════════════════════════════════
    MOBILE RESPONSIVE
@@ -875,6 +876,57 @@ a{color:inherit;text-decoration:none}
   .dj-input-wrap { flex-direction: column; padding: 0 10px; }
   .dj-input { border-radius: 8px; margin-bottom: 10px; font-size:16px; }
   .dj-btn { width: 100%; border-radius: 8px; }
+
+  /* Main content area: fill space, scroll, pad for player + bottom nav */
+  main.main-content {
+    overflow-y: auto;
+    padding-bottom: 160px !important;
+  }
+
+  /* Player bar: full width, above mobile nav */
+  .player {
+    position: fixed;
+    bottom: 60px;
+    left: 0;
+    width: 100%;
+    z-index: 1000;
+    border-radius: 0;
+    padding: 10px 12px;
+    height: auto;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .pl-left {
+    width: 100%;
+    min-width: 0;
+    gap: 8px;
+  }
+  .pl-left-info {
+    min-width: 0;
+  }
+  .pl-mid {
+    width: 100%;
+    max-width: none;
+    order: -1;
+  }
+  .pl-right { display: none; }
+
+  /* Track rows — hide non-essential columns */
+  .tlist-header, .tr-album, .tr-dur, .tr-date, .tr-more { display: none !important; }
+  .track-row {
+    grid-template-columns: 30px 38px minmax(0,1fr) 38px;
+    padding: 8px 10px;
+    gap: 8px;
+  }
+  .tr-like { display: flex; }
+
+  /* Grid cards smaller on mobile */
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 12px;
+    padding: 12px;
+  }
+  .card-art { height: 120px; }
 }
 </style>
 </head>
@@ -1867,16 +1919,31 @@ function updateArtBg(url) {
 /* ════════════════════════════════════
    WEB AUDIO ENGINE
 ════════════════════════════════════ */
-async function ensureACtx() {
-  // Create context only once (or if it was closed). Never close and recreate — 
-  // new AudioContexts start suspended on many browsers and require a user gesture to resume.
+
+// Mobile browsers block AudioContext until a user gesture.
+// Pre-create and resume it on the very first tap/click anywhere on the page.
+let audioUnlocked = false;
+function unlockAudio() {
+  if (audioUnlocked) return;
+  audioUnlocked = true;
   if (!actx || actx.state === 'closed') {
     actx = new (window.AudioContext || window.webkitAudioContext)();
     gainNode = actx.createGain();
     gainNode.gain.value = muted ? 0 : volume;
     gainNode.connect(actx.destination);
   }
-  // Always resume — covers the initial suspended state after first creation
+  if (actx.state === 'suspended') actx.resume();
+}
+document.addEventListener('touchstart', unlockAudio, { once: false, passive: true });
+document.addEventListener('click', unlockAudio, { once: false, passive: true });
+
+async function ensureACtx() {
+  if (!actx || actx.state === 'closed') {
+    actx = new (window.AudioContext || window.webkitAudioContext)();
+    gainNode = actx.createGain();
+    gainNode.gain.value = muted ? 0 : volume;
+    gainNode.connect(actx.destination);
+  }
   if (actx.state === 'suspended') await actx.resume();
 }
 
