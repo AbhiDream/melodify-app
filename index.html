@@ -415,7 +415,6 @@ a{color:inherit;text-decoration:none}
   padding:0 16px;
   height:var(--player-h);
   z-index:100;
-  /* Glassmorphism touch */
   backdrop-filter:blur(20px);
   -webkit-backdrop-filter:blur(20px);
 }
@@ -755,7 +754,7 @@ a{color:inherit;text-decoration:none}
 .dj-hero p { font-size:16px; color:var(--t2); max-width:500px; margin:0 auto 32px; line-height:1.5; }
 .dj-input-wrap { display:flex; max-width:600px; margin:0 auto; gap:12px; position:relative; }
 .dj-input { flex:1; background:rgba(0,0,0,0.4); border:2px solid rgba(255,255,255,0.1); border-radius:500px;
-  padding:0 24px; color:var(--white); font-family:var(--font); font-size:16px; outline:none; transition:border .2s,box-shadow .2s; }
+  padding:16px 24px; color:var(--white); font-family:var(--font); font-size:16px; outline:none; transition:border .2s,box-shadow .2s; }
 .dj-input:focus { border-color:#4fc3f7; box-shadow:0 0 20px rgba(79,195,247,0.2); }
 .dj-btn { flex-shrink:0; background:linear-gradient(90deg, #bf55ec, #4fc3f7); padding:16px 32px; border-radius:500px;
   color:var(--white); font-weight:800; font-size:15px; border:none; cursor:pointer; display:flex; align-items:center; gap:8px;
@@ -794,28 +793,7 @@ a{color:inherit;text-decoration:none}
 .mobile-nav { display: none; }
 
 @media (max-width: 768px) {
-  /* Hide desktop sidebar */
   .sidebar { display: none; }
-  
-  /* Reset main content margin */
-  .main-content {
-    margin-left: 0;
-    width: 100vw;
-  }
-
-  /* Compact Playbar positioned ABOVE the mobile nav */
-  .playbar {
-    padding: 10px;
-    height: auto;
-    min-height: 80px;
-    flex-wrap: wrap;
-    bottom: 60px; /* Leave space for bottom nav */
-  }
-  .pl-left { width: 100%; margin-bottom: 10px; }
-  .pl-mid { width: 100%; max-width: none; margin-bottom: 5px; }
-  .pl-right { display: none; }
-
-  /* Mobile Bottom Navigation */
   .mobile-nav {
     display: flex;
     position: fixed;
@@ -846,44 +824,25 @@ a{color:inherit;text-decoration:none}
     height: 24px;
     fill: currentColor;
   }
-  .mobile-nav-item.active {
-    color: #fff;
-  }
+  .mobile-nav-item.active { color: #fff; }
   .mobile-nav-item.ai-dj svg { stroke: url(#djGrad); fill: none; }
   .mobile-nav-item.ai-dj span {
     background: linear-gradient(90deg,#bf55ec,#4fc3f7);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
   }
-
-  /* Grid Adjustments */
-  .grid {
-    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-    gap: 16px;
-  }
-
-  /* Track List Constraints */
+  .tlist-header { display: none; }
   .track-row {
     grid-template-columns: 35px 35px minmax(0, 1fr) 35px;
     padding: 10px;
   }
   .tr-album, .tr-dur, .tr-date { display: none; }
-  .tlist-header { display: none; }
-
-  /* DJ UI Adjustments */
   .dj-hero h1 { font-size: 2.2rem; }
   .dj-hero p { font-size: 0.95rem; padding: 0 10px; }
   .dj-input-wrap { flex-direction: column; padding: 0 10px; }
   .dj-input { border-radius: 8px; margin-bottom: 10px; font-size:16px; }
   .dj-btn { width: 100%; border-radius: 8px; }
-
-  /* Main content area: fill space, scroll, pad for player + bottom nav */
-  main.main-content {
-    overflow-y: auto;
-    padding-bottom: 160px !important;
-  }
-
-  /* Player bar: full width, above mobile nav */
+  main.main-content { overflow-y: auto; padding-bottom: 160px !important; }
   .player {
     position: fixed;
     bottom: 60px;
@@ -896,22 +855,8 @@ a{color:inherit;text-decoration:none}
     flex-wrap: wrap;
     gap: 6px;
   }
-  .pl-left {
-    width: 100%;
-    min-width: 0;
-    gap: 8px;
-  }
-  .pl-left-info {
-    min-width: 0;
-  }
-  .pl-mid {
-    width: 100%;
-    max-width: none;
-    order: -1;
-  }
+  .pl-left { width: 100%; min-width: 0; gap: 8px; }
   .pl-right { display: none; }
-
-  /* Track rows — hide non-essential columns */
   .tlist-header, .tr-album, .tr-dur, .tr-date, .tr-more { display: none !important; }
   .track-row {
     grid-template-columns: 30px 38px minmax(0,1fr) 38px;
@@ -919,14 +864,6 @@ a{color:inherit;text-decoration:none}
     gap: 8px;
   }
   .tr-like { display: flex; }
-
-  /* Grid cards smaller on mobile */
-  .grid {
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 12px;
-    padding: 12px;
-  }
-  .card-art { height: 120px; }
 }
 </style>
 </head>
@@ -937,6 +874,9 @@ a{color:inherit;text-decoration:none}
   <defs><linearGradient id="djGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#bf55ec"/><stop offset="100%" stop-color="#4fc3f7"/></linearGradient></defs>
 </svg>
 
+<!-- Hidden HTML5 audio element — the actual player engine -->
+<audio id="audioEl" preload="none" crossorigin="anonymous"></audio>
+
 <div class="shell">
 
 <!-- ══════════════════════════════════════
@@ -945,7 +885,6 @@ a{color:inherit;text-decoration:none}
 <aside class="sidebar">
 
   <div class="sidebar-top">
-    <!-- Logo -->
     <div class="logo">
       <svg viewBox="0 0 24 24" fill="none">
         <circle cx="12" cy="12" r="12" fill="#1db954"/>
@@ -954,7 +893,6 @@ a{color:inherit;text-decoration:none}
       <span class="logo-text">Melodify</span>
     </div>
 
-    <!-- Nav -->
     <nav>
       <div class="nav-item active" id="navHome" onclick="showHome();setNavActive(0)">
         <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
@@ -966,7 +904,6 @@ a{color:inherit;text-decoration:none}
       </div>
       <div class="nav-item" id="navDj" onclick="showAiDj()">
         <svg viewBox="0 0 24 24" fill="none" stroke="url(#djGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <defs><linearGradient id="djGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#bf55ec"/><stop offset="100%" stop-color="#4fc3f7"/></linearGradient></defs>
           <path d="M12 2a10 10 0 0 1 10 10v6a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h2"/>
           <path d="M12 2a10 10 0 0 0-10 10v6a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2H2"/>
           <circle cx="12" cy="12" r="3" fill="url(#djGrad)" stroke="none"/>
@@ -1069,23 +1006,10 @@ a{color:inherit;text-decoration:none}
             </div>
             <span class="see-all" onclick="loadTrending(true)" id="trendRefresh">Refresh</span>
           </div>
-          <div class="trend-grid" id="trendGrid">
-            <!-- skeleton rows – JS immediately replaces these on load -->
-            <div class="trend-row" style="pointer-events:none"><div class="trend-rank trend-sk" style="height:22px;width:28px;border-radius:3px">&nbsp;</div><div class="trend-thumb trend-sk"></div><div class="trend-info"><div class="trend-sk" style="height:12px;width:130px;margin-bottom:6px;border-radius:3px"></div><div class="trend-sk" style="height:10px;width:80px;border-radius:3px"></div></div></div>
-            <div class="trend-row" style="pointer-events:none"><div class="trend-rank trend-sk" style="height:22px;width:28px;border-radius:3px">&nbsp;</div><div class="trend-thumb trend-sk"></div><div class="trend-info"><div class="trend-sk" style="height:12px;width:150px;margin-bottom:6px;border-radius:3px"></div><div class="trend-sk" style="height:10px;width:80px;border-radius:3px"></div></div></div>
-            <div class="trend-row" style="pointer-events:none"><div class="trend-rank trend-sk" style="height:22px;width:28px;border-radius:3px">&nbsp;</div><div class="trend-thumb trend-sk"></div><div class="trend-info"><div class="trend-sk" style="height:12px;width:110px;margin-bottom:6px;border-radius:3px"></div><div class="trend-sk" style="height:10px;width:80px;border-radius:3px"></div></div></div>
-            <div class="trend-row" style="pointer-events:none"><div class="trend-rank trend-sk" style="height:22px;width:28px;border-radius:3px">&nbsp;</div><div class="trend-thumb trend-sk"></div><div class="trend-info"><div class="trend-sk" style="height:12px;width:140px;margin-bottom:6px;border-radius:3px"></div><div class="trend-sk" style="height:10px;width:80px;border-radius:3px"></div></div></div>
-            <div class="trend-row" style="pointer-events:none"><div class="trend-rank trend-sk" style="height:22px;width:28px;border-radius:3px">&nbsp;</div><div class="trend-thumb trend-sk"></div><div class="trend-info"><div class="trend-sk" style="height:12px;width:130px;margin-bottom:6px;border-radius:3px"></div><div class="trend-sk" style="height:10px;width:80px;border-radius:3px"></div></div></div>
-            <div class="trend-row" style="pointer-events:none"><div class="trend-rank trend-sk" style="height:22px;width:28px;border-radius:3px">&nbsp;</div><div class="trend-thumb trend-sk"></div><div class="trend-info"><div class="trend-sk" style="height:12px;width:160px;margin-bottom:6px;border-radius:3px"></div><div class="trend-sk" style="height:10px;width:80px;border-radius:3px"></div></div></div>
-            <div class="trend-row" style="pointer-events:none"><div class="trend-rank trend-sk" style="height:22px;width:28px;border-radius:3px">&nbsp;</div><div class="trend-thumb trend-sk"></div><div class="trend-info"><div class="trend-sk" style="height:12px;width:120px;margin-bottom:6px;border-radius:3px"></div><div class="trend-sk" style="height:10px;width:80px;border-radius:3px"></div></div></div>
-            <div class="trend-row" style="pointer-events:none"><div class="trend-rank trend-sk" style="height:22px;width:28px;border-radius:3px">&nbsp;</div><div class="trend-thumb trend-sk"></div><div class="trend-info"><div class="trend-sk" style="height:12px;width:145px;margin-bottom:6px;border-radius:3px"></div><div class="trend-sk" style="height:10px;width:80px;border-radius:3px"></div></div></div>
-            <div class="trend-row" style="pointer-events:none"><div class="trend-rank trend-sk" style="height:22px;width:28px;border-radius:3px">&nbsp;</div><div class="trend-thumb trend-sk"></div><div class="trend-info"><div class="trend-sk" style="height:12px;width:130px;margin-bottom:6px;border-radius:3px"></div><div class="trend-sk" style="height:10px;width:80px;border-radius:3px"></div></div></div>
-            <div class="trend-row" style="pointer-events:none"><div class="trend-rank trend-sk" style="height:22px;width:28px;border-radius:3px">&nbsp;</div><div class="trend-thumb trend-sk"></div><div class="trend-info"><div class="trend-sk" style="height:12px;width:155px;margin-bottom:6px;border-radius:3px"></div><div class="trend-sk" style="height:10px;width:80px;border-radius:3px"></div></div></div>
-          </div>
-
+          <div class="trend-grid" id="trendGrid"></div>
         </div>
 
-        <div class="empty" id="homeEmpty">
+        <div class="empty" id="homeEmpty" style="display:none">
           <svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
           <h3>Start listening</h3>
           <p>Search for a song, artist or album above</p>
@@ -1114,7 +1038,6 @@ a{color:inherit;text-decoration:none}
             <div class="dj-orb dj-orb-2"></div>
             <h1>Your Personal AI DJ</h1>
             <p>Tell me your vibe, context, or mood. I'll perfectly mix your history with new discoveries.</p>
-            
             <div class="dj-input-wrap">
               <input type="text" id="djMoodInput" class="dj-input" placeholder="e.g. late night drive, sad & alone, aggressive gym..." onkeydown="if(event.key==='Enter') generateAiPlaylist()"/>
               <button class="dj-btn" id="djGenerateBtn" onclick="generateAiPlaylist()">
@@ -1124,34 +1047,6 @@ a{color:inherit;text-decoration:none}
             </div>
             <div id="djStatus" class="dj-status"></div>
           </div>
-          
-          <div class="tlist-header" id="djListHeader" style="display:none;margin-top:20px">
-            <div>#</div><div></div><div>Title</div><div>Channel</div>
-            <div style="text-align:right">Duration</div><div></div>
-          </div>
-          <div class="track-list" id="djResultList" style="padding-bottom:120px"></div>
-        </div>
-      </div>
-
-      <!-- AI DJ SECTION -->
-      <div id="aiDjSection" style="display:none">
-        <div class="dj-container">
-          <div class="dj-hero">
-            <div class="dj-orb"></div>
-            <div class="dj-orb dj-orb-2"></div>
-            <h1>Your Personal AI DJ</h1>
-            <p>Tell me your vibe, context, or mood. I'll perfectly mix your history with new discoveries.</p>
-            
-            <div class="dj-input-wrap">
-              <input type="text" id="djMoodInput" class="dj-input" placeholder="e.g. late night drive, sad & alone, aggressive gym..." onkeydown="if(event.key==='Enter') generateAiPlaylist()"/>
-              <button class="dj-btn" id="djGenerateBtn" onclick="generateAiPlaylist()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M5 3l14 9-14 9V3z"/></svg>
-                Play for my mood
-              </button>
-            </div>
-            <div id="djStatus" class="dj-status"></div>
-          </div>
-          
           <div class="tlist-header" id="djListHeader" style="display:none;margin-top:20px">
             <div>#</div><div></div><div>Title</div><div>Channel</div>
             <div style="text-align:right">Duration</div><div></div>
@@ -1189,7 +1084,8 @@ a{color:inherit;text-decoration:none}
         </div>
       </div>
 
-
+    </div>
+  </div>
 </main>
 
 <!-- ══════════════════════════════════════
@@ -1217,16 +1113,16 @@ a{color:inherit;text-decoration:none}
       <button class="ctrl" id="shuffleBtn" data-tip="Enable shuffle" onclick="this.classList.toggle('on')">
         <svg viewBox="0 0 24 24"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>
       </button>
-      <button class="ctrl ctrl-lg" data-tip="Previous" onclick="skip(-30)">
+      <button class="ctrl ctrl-lg" data-tip="Previous" onclick="seekRelative(-10)">
         <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
       </button>
       <button class="ctrl ctrl-play" id="playBtn" data-tip="Play" onclick="togglePlay()">
         <svg id="playIcon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
       </button>
-      <button class="ctrl ctrl-lg" data-tip="Next" onclick="skip(30)">
+      <button class="ctrl ctrl-lg" data-tip="Next" onclick="seekRelative(10)">
         <svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
       </button>
-      <button class="ctrl" id="repeatBtn" data-tip="Enable repeat" onclick="this.classList.toggle('on')">
+      <button class="ctrl" id="repeatBtn" data-tip="Enable repeat" onclick="toggleRepeat()">
         <svg viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>
       </button>
     </div>
@@ -1248,10 +1144,6 @@ a{color:inherit;text-decoration:none}
       <div class="buf-dot" id="chunkDot"></div>
       <span id="chunkText"></span>
     </div>
-
-    <button class="ctrl" data-tip="Now playing view">
-      <svg viewBox="0 0 24 24"><path d="M4 18h16v-2H4v2zm0-5h16v-2H4v2zm0-7v2h16V6H4z"/></svg>
-    </button>
 
     <button class="vol-icon ctrl" id="volBtn" onclick="toggleMute()" data-tip="Mute">
       <svg id="volIcon" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
@@ -1280,7 +1172,7 @@ a{color:inherit;text-decoration:none}
     <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 1 10 10v6a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h2"/><path d="M12 2a10 10 0 0 0-10 10v6a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2H2"/><circle cx="12" cy="12" r="3"/></svg>
     <span>AI DJ</span>
   </div>
-  <div class="mobile-nav-item" id="mNavLibrary" onclick="showPlaylist('liked', 'Liked Songs');setMNavActive('mNavLibrary')">
+  <div class="mobile-nav-item" id="mNavLibrary" onclick="showPlaylist('liked');setMNavActive('mNavLibrary')">
     <svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8 12.5v-9l6 4.5-6 4.5z"/></svg>
     <span>Library</span>
   </div>
@@ -1319,25 +1211,177 @@ a{color:inherit;text-decoration:none}
 /* ════════════════════════════════════
    CONFIG
 ════════════════════════════════════ */
-const SERVER    = '';
-const SERVER    = '';
-const CHUNK_SEC = 60;   // match server default
-const PRE_LOAD  = 2;
+const SERVER = '';
 
 /* ════════════════════════════════════
-   AUDIO STATE
+   HTML5 AUDIO ENGINE
 ════════════════════════════════════ */
-let actx = null, gainNode = null;
-let volume = 0.85, muted = false, prevVol = 0.85;
-let nodes = [], songOffset = 0, audioRefTime = 0;
-let currentTrack = null, totalDuration = 0, isPlaying = false;
-let chunkCache = {}, chunkFailed = new Set(), loadingSet = new Set(), tickId = null;
-let scheduledChunks = new Set();
-let playSessionId = 0;
+const audio = document.getElementById('audioEl');
+let currentTrack = null;
+let isPlaying = false;
+let volume = 0.85;
+let muted = false;
+let prevVol = 0.85;
+let repeatOn = false;
 let listeningHistory = [];
 
+audio.volume = volume;
+
+audio.addEventListener('timeupdate', () => {
+  if (!audio.duration) return;
+  const pct = (audio.currentTime / audio.duration) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressKnob').style.left = pct + '%';
+  document.getElementById('timeCurrent').textContent = fmt(audio.currentTime);
+  // buffer bar
+  if (audio.buffered.length) {
+    const bufEnd = audio.buffered.end(audio.buffered.length - 1);
+    document.getElementById('bufferBar').style.width = (bufEnd / audio.duration * 100) + '%';
+  }
+});
+
+audio.addEventListener('durationchange', () => {
+  document.getElementById('timeTotal').textContent = fmt(audio.duration);
+});
+
+audio.addEventListener('play', () => {
+  isPlaying = true;
+  updateIcon();
+  setStatus('ready', '');
+});
+
+audio.addEventListener('pause', () => {
+  isPlaying = false;
+  updateIcon();
+});
+
+audio.addEventListener('waiting', () => {
+  setStatus('buffering', 'loading…');
+});
+
+audio.addEventListener('canplay', () => {
+  setStatus('ready', '');
+});
+
+audio.addEventListener('ended', () => {
+  isPlaying = false;
+  updateIcon();
+  if (repeatOn) {
+    audio.currentTime = 0;
+    audio.play();
+  }
+});
+
+audio.addEventListener('error', (e) => {
+  console.error('[audio] error', e);
+  setStatus('', '');
+  isPlaying = false;
+  updateIcon();
+});
+
+async function loadTrack(item) {
+  currentTrack = item;
+
+  // Track row UI
+  document.querySelectorAll('.track-row').forEach(r => {
+    const active = r.dataset.id === item.id;
+    r.classList.toggle('playing', active);
+    const pp = r.querySelector('.tr-play-path');
+    if (pp) pp.setAttribute('d', active ? 'M6 19h4V5H6v14zm8-14v14h4V5h-4z' : 'M8 5v14l11-7z');
+    const eq = r.querySelector('.tr-eq');
+    const num = r.querySelector('.tr-num');
+    if (eq) eq.style.display = active ? 'flex' : 'none';
+    if (num) num.style.display = active ? 'none' : '';
+  });
+
+  // Track listening history
+  const histStr = `${item.title} by ${item.uploader}`;
+  listeningHistory = [histStr, ...listeningHistory.filter(h => h !== histStr)].slice(0, 15);
+
+  // Player bar UI
+  document.getElementById('plThumb').src = item.thumbnail;
+  const titleEl = document.getElementById('plTitle');
+  titleEl.textContent = item.title;
+  titleEl.classList.remove('idle');
+  document.getElementById('plArtist').innerHTML = `<span onclick="doSearch('${esc(item.uploader)}')">${esc(item.uploader)}</span>`;
+  document.getElementById('timeTotal').textContent = item.duration ? fmt(item.duration) : '-:--';
+
+  // Sync heart
+  const liked = isLiked(item.id);
+  const hBtn = document.getElementById('heartBtn');
+  hBtn.classList.toggle('liked', liked);
+  document.getElementById('heartPath').setAttribute('d', liked ? HEART_FULL : HEART_EMPTY);
+
+  updateArtBg(item.thumbnail);
+  setStatus('buffering', 'loading…');
+
+  // Set audio source to stream endpoint and play
+  audio.src = `${SERVER}/stream/${item.id}`;
+  audio.load();
+  try {
+    await audio.play();
+  } catch(e) {
+    console.error('[audio] play failed', e);
+  }
+}
+
+async function togglePlay() {
+  if (!currentTrack) return;
+  if (audio.paused) {
+    try { await audio.play(); } catch(e) { console.error(e); }
+  } else {
+    audio.pause();
+  }
+}
+
+function seekRelative(secs) {
+  if (!currentTrack) return;
+  audio.currentTime = Math.max(0, Math.min(audio.duration || 0, audio.currentTime + secs));
+}
+
+function seekTo(e) {
+  if (!currentTrack || !audio.duration) return;
+  const r = document.getElementById('progressBg').getBoundingClientRect();
+  audio.currentTime = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * audio.duration;
+}
+
+function seekVol(e) {
+  const r = document.getElementById('volBar').getBoundingClientRect();
+  setVolume(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)));
+}
+
+function setVolume(v) {
+  volume = v; muted = false;
+  audio.volume = v;
+  document.getElementById('volFill').style.width = (v * 100) + '%';
+  document.getElementById('volKnob').style.left = (v * 100) + '%';
+  updateVolIcon();
+}
+
+function toggleMute() {
+  if (!muted) {
+    prevVol = volume; muted = true; audio.volume = 0;
+    document.getElementById('volFill').style.width = '0%';
+    document.getElementById('volKnob').style.left = '0%';
+  } else {
+    muted = false; setVolume(prevVol);
+  }
+  updateVolIcon();
+}
+
+function toggleRepeat() {
+  repeatOn = !repeatOn;
+  document.getElementById('repeatBtn').classList.toggle('on', repeatOn);
+}
+
+function updateIcon() {
+  document.getElementById('playIcon').innerHTML = isPlaying
+    ? `<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>`
+    : `<path d="M8 5v14l11-7z"/>`;
+}
+
 /* ════════════════════════════════════
-   INIT
+   GREETING
 ════════════════════════════════════ */
 const h = new Date().getHours();
 document.getElementById('greeting').textContent =
@@ -1350,7 +1394,6 @@ async function loadTrending(force = false) {
   const grid = document.getElementById('trendGrid');
   if (!grid) return;
 
-  // Show skeleton
   grid.innerHTML = Array(10).fill(0).map((_,i) => `
     <div class="trend-row" style="pointer-events:none">
       <div class="trend-rank trend-sk" style="height:22px;width:28px;border-radius:3px">&nbsp;</div>
@@ -1404,7 +1447,6 @@ function renderTrending(items) {
   }).join('');
 }
 
-// Auto-load trending on page init
 loadTrending();
 
 /* ════════════════════════════════════
@@ -1421,7 +1463,9 @@ function loadDB() {
 function saveDB() { localStorage.setItem(STORE_KEY, JSON.stringify(db)); }
 loadDB();
 
-/* liked helpers */
+const HEART_FULL = 'M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z';
+const HEART_EMPTY = 'M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55l-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z';
+
 function isLiked(id) { return db.liked.some(s => s.id === id); }
 function toggleLike(item) {
   if (isLiked(item.id)) {
@@ -1435,21 +1479,16 @@ function toggleLike(item) {
 
 function syncHeartIcons(id) {
   const liked = isLiked(id);
-  // player bar heart
   if (currentTrack && currentTrack.id === id) {
     const btn = document.getElementById('heartBtn');
     btn.classList.toggle('liked', liked);
-    document.getElementById('heartPath').setAttribute('d', liked
-      ? 'M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'
-      : 'M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55l-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z');
+    document.getElementById('heartPath').setAttribute('d', liked ? HEART_FULL : HEART_EMPTY);
   }
-  // track list hearts
   document.querySelectorAll('.tr-like[data-id="'+id+'"]').forEach(el => {
     el.classList.toggle('liked', liked);
   });
 }
 
-/* playlist helpers */
 function uid() { return Math.random().toString(36).slice(2,10); }
 function createPlaylist(name) {
   const pl = { id: uid(), name: name.trim(), songs: [] };
@@ -1473,7 +1512,6 @@ function removeFromPlaylist(plId, songId) {
     if (pl) pl.songs = pl.songs.filter(s => s.id !== songId);
   }
   saveDB(); renderSidebar();
-  // refresh current playlist view if open
   if (currentPlaylistId) showPlaylist(currentPlaylistId);
 }
 
@@ -1538,8 +1576,7 @@ function showPlaylist(id) {
   delBtn.style.display = isLikedPl ? 'none' : '';
   delBtn.onclick = () => { if(confirm(`Delete "${name}"?`)) deletePlaylist(id); };
 
-  const playAllBtn = document.getElementById('pvPlayAll');
-  playAllBtn.onclick = () => { if(songs.length) playAll(songs); };
+  document.getElementById('pvPlayAll').onclick = () => { if(songs.length) loadTrack(songs[0]); };
 
   const list = document.getElementById('playlistTrackList');
   if (!songs.length) {
@@ -1547,14 +1584,13 @@ function showPlaylist(id) {
     return;
   }
   list.innerHTML = songs.map((item, idx) => `
-    <div class="track-row fu ${currentTrack&&currentTrack.id===item.id?'playing':''}" style="animation-delay:${idx*30}ms" onclick="loadTrack(${JSON.stringify(item).replace(/"/g,'&quot;')})">
+    <div class="track-row fu ${currentTrack&&currentTrack.id===item.id?'playing':''}" data-id="${item.id}" style="animation-delay:${idx*30}ms" onclick="loadTrack(${JSON.stringify(item).replace(/"/g,'&quot;')})">
       <div class="tr-num">${idx+1}</div>
       <div class="tr-eq" style="display:${currentTrack&&currentTrack.id===item.id?'flex':'none'}"><div class="eq"><span></span><span></span><span></span></div></div>
-      <div class="tr-play-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>
+      <div class="tr-play-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path class="tr-play-path" d="M8 5v14l11-7z"/></svg></div>
       <img class="tr-thumb" src="${item.thumbnail}" loading="lazy" onerror="this.style.background='#333'"/>
       <div class="tr-info">
-        <div class="tr-title ${currentTrack&&currentTrack.id===item.id?'':''}">
-          ${esc(item.title)}${currentTrack&&currentTrack.id===item.id?'':''}</div>
+        <div class="tr-title">${esc(item.title)}</div>
         <div class="tr-artist">${esc(item.uploader)}</div>
       </div>
       <div class="tr-album">${esc(item.uploader)}</div>
@@ -1563,12 +1599,6 @@ function showPlaylist(id) {
         <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
       </button>
     </div>`).join('');
-}
-
-function playAll(songs) {
-  if (!songs || !songs.length) return;
-  loadTrack(songs[0]);
-  // Subsequent tracks are not auto-queued (no queue system yet) – play first song
 }
 
 /* ════════════════════════════════════
@@ -1598,13 +1628,9 @@ function showCtxMenu(e, item) {
   e.stopPropagation();
   ctxItem = item;
   const menu = document.getElementById('ctxMenu');
-  // update like state
   const liked = isLiked(item.id);
   document.getElementById('ctxLikeText').textContent = liked ? 'Remove from Liked Songs' : 'Save to Liked Songs';
-  document.getElementById('ctxHeartPath').setAttribute('d', liked
-    ? 'M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'
-    : 'M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55l-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z');
-  // build submenu
+  document.getElementById('ctxHeartPath').setAttribute('d', liked ? HEART_FULL : HEART_EMPTY);
   const sub = document.getElementById('ctxSubMenu');
   if (db.playlists.length === 0) {
     sub.innerHTML = `<div class="ctx-item" onclick="openCreateModal();closeCtxMenu()">
@@ -1620,7 +1646,6 @@ function showCtxMenu(e, item) {
         <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
         New playlist</div>`;
   }
-  // position
   const x = Math.min(e.clientX, window.innerWidth  - 200);
   const y = Math.min(e.clientY, window.innerHeight - 200);
   menu.style.left = x + 'px';
@@ -1666,11 +1691,13 @@ function showAiDj() {
   document.getElementById('searchSection').style.display = 'none';
   document.getElementById('playlistSection').style.display = 'none';
   document.getElementById('aiDjSection').style.display = '';
-  setNavActive(2); // AI DJ is the 3rd nav item
+  setNavActive(2);
   setTimeout(() => document.getElementById('djMoodInput').focus(), 100);
 }
 
-// ── AI DJ LOGIC ───────────────────────────────────────
+/* ════════════════════════════════════
+   AI DJ
+════════════════════════════════════ */
 async function generateAiPlaylist() {
   const input = document.getElementById('djMoodInput');
   const mood = input.value.trim();
@@ -1685,8 +1712,7 @@ async function generateAiPlaylist() {
   btn.style.opacity = '0.7';
   status.className = 'dj-status loading';
   status.textContent = 'Curating your perfect vibe... this takes ~5 seconds';
-  
-  // Show skeleton in list
+
   header.style.display = '';
   list.innerHTML = Array(8).fill(null).map((_,i) => `
     <div class="track-row" style="opacity:1;pointer-events:none">
@@ -1711,11 +1737,10 @@ async function generateAiPlaylist() {
     if (!tracks || !tracks.length) throw new Error('No tracks returned');
 
     status.className = 'dj-status';
-    status.innerHTML = `<span style="color:var(--green)">Playlist generated successfully. Playing first song...</span>`;
-    
-    // Render the list
+    status.innerHTML = `<span style="color:var(--green)">Playlist generated! Playing first song...</span>`;
+
     list.innerHTML = tracks.map((item, idx) => `
-    <div class="track-row fu" style="animation-delay:${idx*30}ms" onclick='loadTrack(${JSON.stringify(item).replace(/"/g,'&quot;')})'>
+    <div class="track-row fu" data-id="${item.id}" style="animation-delay:${idx*30}ms" onclick='loadTrack(${JSON.stringify(item).replace(/"/g,'&quot;')})'>
       <div class="tr-num">${idx+1}</div>
       <div class="tr-eq" style="display:none"><div class="eq"><span></span><span></span><span></span></div></div>
       <div class="tr-play-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path class="tr-play-path" d="M8 5v14l11-7z"/></svg></div>
@@ -1728,17 +1753,13 @@ async function generateAiPlaylist() {
       <div class="tr-dur">${fmt(item.duration)}</div>
       <button class="tr-like ${isLiked(item.id)?'liked':''}" data-id="${item.id}"
         onclick="event.stopPropagation();toggleLike(${JSON.stringify(item).replace(/"/g,'&quot;')})" title="Save to Liked Songs">
-        <svg viewBox="0 0 24 24"><path d=""/> </svg>
+        <svg viewBox="0 0 24 24"><path d="${isLiked(item.id)?HEART_FULL:HEART_EMPTY}"/></svg>
       </button>
       <button class="tr-more" onclick="event.stopPropagation();showCtxMenu(event,${JSON.stringify(item).replace(/"/g,'&quot;')})" title="More options">
         <svg viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
       </button>
     </div>`).join('');
 
-    // Update heart icons safely
-    tracks.forEach(item => syncHeartIcons(item.id));
-
-    // Play first track!
     if (tracks[0]) loadTrack(tracks[0]);
 
   } catch (err) {
@@ -1753,7 +1774,6 @@ async function generateAiPlaylist() {
     btn.style.opacity = '1';
   }
 }
-
 
 /* ════════════════════════════════════
    SEARCH
@@ -1788,7 +1808,6 @@ async function doSearch(q) {
   document.getElementById('resultsTitle').textContent = `Results for "${q}"`;
 
   const list = document.getElementById('resultList');
-  // Skeleton
   list.innerHTML = Array(7).fill(null).map((_,i) => `
     <div class="track-row" style="opacity:1">
       <div class="tr-num sk" style="height:16px;border-radius:3px"></div>
@@ -1807,7 +1826,7 @@ async function doSearch(q) {
   } catch(e) {
     list.innerHTML = `<div style="padding:32px 16px;color:#ff6b6b;font-size:14px;display:flex;align-items:center;gap:10px">
       <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
-      Cannot reach server — make sure Node.js is running on port 3000.</div>`;
+      Cannot reach server.</div>`;
   }
 }
 
@@ -1819,9 +1838,6 @@ function renderList(items) {
     row.className = 'track-row fu';
     row.dataset.id = item.id;
     row.style.animationDelay = (idx * 35) + 'ms';
-    const heartD = isLiked(item.id)
-      ? 'M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'
-      : 'M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55l-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z';
     row.innerHTML = `
       <div class="tr-num">${idx+1}</div>
       <div class="tr-eq" style="display:none">
@@ -1839,7 +1855,7 @@ function renderList(items) {
       <div class="tr-dur">${fmt(item.duration)}</div>
       <button class="tr-like ${isLiked(item.id)?'liked':''}" data-id="${item.id}"
         onclick="event.stopPropagation();toggleLike(${JSON.stringify(item).replace(/"/g,'&quot;')})" title="Save to Liked Songs">
-        <svg viewBox="0 0 24 24"><path d="${heartD}"/></svg>
+        <svg viewBox="0 0 24 24"><path d="${isLiked(item.id)?HEART_FULL:HEART_EMPTY}"/></svg>
       </button>
       <button class="tr-more" onclick="event.stopPropagation();showCtxMenu(event,${JSON.stringify(item).replace(/"/g,'&quot;')})" title="More options">
         <svg viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
@@ -1850,59 +1866,8 @@ function renderList(items) {
 }
 
 /* ════════════════════════════════════
-   LOAD TRACK
+   DYNAMIC BACKGROUND
 ════════════════════════════════════ */
-async function loadTrack(item) {
-  // Update row UI
-  document.querySelectorAll('.track-row').forEach(r => {
-    const active = r.dataset.id === item.id;
-    r.classList.toggle('playing', active);
-    const pp = r.querySelector('.tr-play-path');
-    if (pp) pp.setAttribute('d', active ? 'M6 19h4V5H6v14zm8-14v14h4V5h-4z' : 'M8 5v14l11-7z');
-    const eq = r.querySelector('.tr-eq');
-    const num = r.querySelector('.tr-num');
-    if (eq) eq.style.display = active ? 'flex' : 'none';
-    if (num) num.style.display = active ? 'none' : '';
-  });
-
-  hardStop();
-  chunkCache = {}; loadingSet.clear(); chunkFailed.clear();
-  currentTrack  = item;
-  totalDuration = item.duration || 0;
-
-  // Track listening history
-  const historyString = `${item.title} by ${item.uploader}`;
-  listeningHistory = [historyString, ...listeningHistory.filter(h => h !== historyString)].slice(0, 15);
-
-  // Player bar
-  document.getElementById('plThumb').src = item.thumbnail;
-  const titleEl = document.getElementById('plTitle');
-  titleEl.textContent = item.title;
-  titleEl.classList.remove('idle');
-  document.getElementById('plArtist').innerHTML = `<span onclick="doSearch('${esc(item.uploader)}')">${esc(item.uploader)}</span>`;
-  document.getElementById('timeTotal').textContent = fmt(totalDuration);
-  document.getElementById('playBtn').setAttribute('data-tip','Pause');
-  // sync heart icon
-  const liked = isLiked(item.id);
-  const hBtn = document.getElementById('heartBtn');
-  hBtn.classList.toggle('liked', liked);
-  document.getElementById('heartPath').setAttribute('d', liked
-    ? 'M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'
-    : 'M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55l-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z');
-
-  updateArtBg(item.thumbnail);
-
-  if (!totalDuration) {
-    try {
-      const d = await fetch(`${SERVER}/info/${item.id}`).then(r=>r.json());
-      totalDuration = d.duration || 0;
-      document.getElementById('timeTotal').textContent = fmt(totalDuration);
-    } catch(_) {}
-  }
-  await startFrom(0);
-}
-
-// Dynamic background gradient
 const PALETTE = [
   '#1e3a2a','#2a1e3a','#3a2e1e','#1e2a3a',
   '#3a1e2a','#2a3a1e','#1e3a3a','#3a1e3a',
@@ -1917,335 +1882,8 @@ function updateArtBg(url) {
 }
 
 /* ════════════════════════════════════
-
-/* ════════════════════════════════════
-   WEB AUDIO ENGINE
+   HEART BUTTON
 ════════════════════════════════════ */
-
-// Unlock AudioContext on first user gesture (required on mobile/Safari)
-let audioUnlocked = false;
-function unlockAudio() {
-  if (audioUnlocked) return;
-  audioUnlocked = true;
-  if (!actx || actx.state === 'closed') {
-    actx = new (window.AudioContext || window.webkitAudioContext)();
-    gainNode = actx.createGain();
-    gainNode.gain.value = muted ? 0 : volume;
-    gainNode.connect(actx.destination);
-  }
-  if (actx.state === 'suspended') actx.resume();
-}
-document.addEventListener('touchstart', unlockAudio, { once: false, passive: true });
-document.addEventListener('click', unlockAudio, { once: false, passive: true });
-
-async function ensureACtx() {
-  if (!actx || actx.state === 'closed') {
-    actx = new (window.AudioContext || window.webkitAudioContext)();
-    gainNode = actx.createGain();
-    gainNode.gain.value = muted ? 0 : volume;
-    gainNode.connect(actx.destination);
-  }
-  if (actx.state === 'suspended') await actx.resume();
-}
-
-async function startFrom(songSec) {
-  playSessionId++;
-  const mySession = playSessionId;
-
-  killNodes();
-  clearInterval(tickId);
-  tickId = null;
-  isPlaying = false;
-
-  await ensureACtx();
-
-  scheduledChunks.clear();
-  isPlaying = true;
-  updateIcon();
-
-  await pipelineFrom(songSec, mySession);
-}
-
-async function pipelineFrom(songSec, mySession) {
-  const first = chunkFloor(songSec);
-  const off   = songSec - first;
-
-  setStatus('buffering', 'loading…');
-  const buf = await fetchChunk(first);
-  if (!buf || mySession !== playSessionId) {
-    setStatus('', '');
-    isPlaying = false; updateIcon();
-    return;
-  }
-
-  let ab;
-  try {
-    ab = await actx.decodeAudioData(buf.slice(0));
-  } catch(e) {
-    console.error('[audio] decodeAudioData failed for chunk', first, e);
-    // Bust the bad cache entry and retry once with a fresh fetch
-    delete chunkCache[first];
-    chunkFailed.add(first);
-    setStatus('', '');
-    isPlaying = false; updateIcon();
-    return;
-  }
-  if (mySession !== playSessionId) return;
-
-  const trim = off;
-  const dur  = ab.duration - trim;
-  if (dur <= 0) return;
-
-  // Fix: audioRefTime = actx.currentTime at the exact moment audio starts
-  const at = actx.currentTime + 0.15;
-  songOffset   = songSec;
-  audioRefTime = at - 0;  // getSongTime() = songOffset + (actx.currentTime - audioRefTime)
-                           // when actx.currentTime == at → result = songOffset ✓
-
-  scheduledChunks.add(first);
-  const src = actx.createBufferSource();
-  src.buffer = ab;
-  src.connect(gainNode);
-  src.start(at, trim, dur);
-  nodes.push({ source: src, chunkSec: first, startAt: at, dur });
-
-  setStatus('ready', fmt(first + ab.duration));
-  startTick();
-
-  // Pre-fetch next chunk in background
-  const nx = first + CHUNK_SEC;
-  if (!totalDuration || nx < totalDuration) fetchChunk(nx);
-
-  scheduleLoop();
-}
-
-function scheduleLoop() {
-  if (!isPlaying) return;
-  const last = nodes[nodes.length - 1];
-  if (!last) return;
-
-  const end = last.startAt + last.dur;
-  const timeUntilEnd = end - actx.currentTime;
-  if (timeUntilEnd > CHUNK_SEC * PRE_LOAD) return;
-
-  const nx = last.chunkSec + CHUNK_SEC;
-  if (totalDuration && nx >= totalDuration) return;
-  if (scheduledChunks.has(nx)) return;
-  if (chunkFailed.has(nx)) return;
-  scheduledChunks.add(nx);
-
-  const mySession = playSessionId;
-  fetchChunk(nx).then(buf => {
-    if (!buf || mySession !== playSessionId) { scheduledChunks.delete(nx); return; }
-    actx.decodeAudioData(buf.slice(0)).then(ab => {
-      if (mySession !== playSessionId) { scheduledChunks.delete(nx); return; }
-      const l = nodes[nodes.length - 1];
-      if (!l) return;
-
-      const at = l.startAt + l.dur;
-      const scheduledAt = Math.max(at, actx.currentTime + 0.05);
-
-      const src = actx.createBufferSource();
-      src.buffer = ab;
-      src.connect(gainNode);
-      src.start(scheduledAt, 0, ab.duration);
-      nodes.push({ source: src, chunkSec: nx, startAt: scheduledAt, dur: ab.duration });
-
-      const nn = nx + CHUNK_SEC;
-      if (!totalDuration || nn < totalDuration) fetchChunk(nn);
-      scheduleLoop();
-    }).catch(e => {
-      console.error('[audio] decodeAudioData failed for chunk', nx, e);
-      delete chunkCache[nx];
-      chunkFailed.add(nx);
-      scheduledChunks.delete(nx);
-    });
-  });
-}
-
-function killNodes() {
-  nodes.forEach(n => {
-    try { n.source.stop(0); }    catch(_) {}
-    try { n.source.disconnect(); } catch(_) {}
-  });
-  nodes = [];
-  scheduledChunks.clear();
-}
-
-function hardStop() {
-  killNodes();
-  isPlaying = false;
-  clearInterval(tickId);
-  tickId = null;
-  updateIcon();
-}
-
-/* ════════════════════════════════════
-   CHUNK FETCH  (fixed: checks HTTP status, resolves waiters on failure)
-════════════════════════════════════ */
-function chunkFloor(t) { return Math.floor(t / CHUNK_SEC) * CHUNK_SEC; }
-
-// Pending waiters: chunkStart → [resolve, reject][]
-const chunkWaiters = {};
-
-async function fetchChunk(cs) {
-  if (chunkCache[cs]) return chunkCache[cs];
-  if (chunkFailed.has(cs)) return null;
-
-  // If already in-flight, queue as waiter
-  if (loadingSet.has(cs)) {
-    return new Promise((resolve, reject) => {
-      if (!chunkWaiters[cs]) chunkWaiters[cs] = [];
-      chunkWaiters[cs].push({ resolve, reject });
-    });
-  }
-
-  loadingSet.add(cs);
-  const rem = totalDuration ? totalDuration - cs : CHUNK_SEC;
-  const dur = Math.min(CHUNK_SEC, rem);
-  if (dur <= 0) {
-    loadingSet.delete(cs);
-    return null;
-  }
-
-  setStatus('buffering', `${fmt(cs)}–${fmt(cs + dur)}`);
-
-  try {
-    const resp = await fetch(`${SERVER}/chunk/${currentTrack.id}?start=${cs}&duration=${dur}`);
-
-    // ← KEY FIX: reject non-200 responses instead of caching error JSON
-    if (!resp.ok) {
-      const errText = await resp.text();
-      console.error(`[chunk] server error ${resp.status} for ${cs}s:`, errText);
-      throw new Error(`HTTP ${resp.status}`);
-    }
-
-    const ab = await resp.arrayBuffer();
-
-    // Sanity check: a valid MP3 is at least a few KB
-    if (ab.byteLength < 1000) {
-      console.error(`[chunk] suspiciously small response (${ab.byteLength} bytes) for chunk ${cs}`);
-      throw new Error('Response too small — likely an error payload');
-    }
-
-    chunkCache[cs] = ab;
-    loadingSet.delete(cs);
-    setStatus('ready', fmt(cs + dur));
-    updateBufBar();
-    cleanOld();
-
-    // Resolve all waiters
-    (chunkWaiters[cs] || []).forEach(w => w.resolve(ab));
-    delete chunkWaiters[cs];
-
-    return ab;
-  } catch(e) {
-    console.error('[chunk] fetch failed for', cs, e.message);
-    chunkFailed.add(cs);
-    loadingSet.delete(cs);
-    setStatus('', '');
-
-    // Reject all waiters so they don't hang
-    (chunkWaiters[cs] || []).forEach(w => w.resolve(null));
-    delete chunkWaiters[cs];
-
-    return null;
-  }
-}
-
-function cleanOld() {
-  const keep = Math.max(0, chunkFloor(getSongTime()) - CHUNK_SEC);
-  Object.keys(chunkCache).forEach(k => { if (parseInt(k) < keep) delete chunkCache[k]; });
-  if (currentTrack) fetch(`${SERVER}/chunk/${currentTrack.id}?keepStart=${keep}`, { method: 'DELETE' }).catch(() => {});
-}
-
-/* ════════════════════════════════════
-   TICK
-════════════════════════════════════ */
-function getSongTime() {
-  if (!actx || !isPlaying) return songOffset;
-  return songOffset + (actx.currentTime - audioRefTime);
-}
-
-function startTick() {
-  clearInterval(tickId);
-  tickId = setInterval(() => {
-    if (!isPlaying) return;
-    const t = getSongTime();
-    if (totalDuration && t >= totalDuration - 0.3) { hardStop(); updateUI(totalDuration); return; }
-    updateUI(t);
-    scheduleLoop();
-    if (actx) nodes = nodes.filter(n => n.startAt + n.dur > actx.currentTime - 1);
-    cleanOld();
-  }, 250);
-}
-
-function updateUI(t) {
-  const pct = totalDuration ? (t / totalDuration) * 100 : 0;
-  document.getElementById('progressFill').style.width = pct + '%';
-  document.getElementById('progressKnob').style.left  = pct + '%';
-  document.getElementById('timeCurrent').textContent  = fmt(t);
-}
-
-function updateBufBar() {
-  if (!totalDuration) return;
-  const max = Math.max(...Object.keys(chunkCache).map(Number), 0) + CHUNK_SEC;
-  document.getElementById('bufferBar').style.width = Math.min(100,(max/totalDuration)*100) + '%';
-}
-
-/* ════════════════════════════════════
-   CONTROLS
-════════════════════════════════════ */
-async function togglePlay() {
-  if (!currentTrack) return;
-  if (isPlaying) {
-    songOffset = getSongTime();
-    hardStop();
-    document.getElementById('playBtn').setAttribute('data-tip','Play');
-  } else {
-    await startFrom(songOffset);
-    document.getElementById('playBtn').setAttribute('data-tip','Pause');
-  }
-}
-async function skip(secs) {
-  if (!currentTrack) return;
-  await startFrom(Math.max(0, Math.min(totalDuration||9999, getSongTime()+secs)));
-}
-async function seekTo(e) {
-  if (!currentTrack || !totalDuration) return;
-  const r = document.getElementById('progressBg').getBoundingClientRect();
-  await startFrom(Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)) * totalDuration);
-}
-function seekVol(e) {
-  const r = document.getElementById('volBar').getBoundingClientRect();
-  setVolume(Math.max(0, Math.min(1,(e.clientX-r.left)/r.width)));
-}
-function setVolume(v) {
-  volume = v; muted = false;
-  if (gainNode) gainNode.gain.value = v;
-  document.getElementById('volFill').style.width = (v*100)+'%';
-  document.getElementById('volKnob').style.left  = (v*100)+'%';
-  updateVolIcon();
-}
-function toggleMute() {
-  if (!muted) { prevVol = volume; muted = true; volume = 0; if(gainNode) gainNode.gain.value = 0; document.getElementById('volFill').style.width='0%'; document.getElementById('volKnob').style.left='0%'; }
-  else        { muted = false; setVolume(prevVol); }
-  updateVolIcon();
-}
-function updateVolIcon() {
-  const v = muted ? 0 : volume;
-  document.getElementById('volIcon').innerHTML = v === 0
-    ? `<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>`
-    : v < 0.5
-    ? `<path d="M7 9v6h4l5 5V4l-5 5H7zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>`
-    : `<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>`;
-}
-function updateIcon() {
-  document.getElementById('playIcon').innerHTML = isPlaying
-    ? `<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>`
-    : `<path d="M8 5v14l11-7z"/>`;
-}
-
 function toggleHeart() {
   if (!currentTrack) return;
   toggleLike(currentTrack);
@@ -2270,21 +1908,7 @@ function esc(s) {
 }
 
 /* ════════════════════════════════════
-   KEYBOARD SHORTCUTS
-════════════════════════════════════ */
-document.addEventListener('keydown', e => {
-  if (e.target === searchInput) return;
-  if (e.code === 'Space')      { e.preventDefault(); togglePlay(); }
-  if (e.code === 'ArrowRight') { e.preventDefault(); skip(10); }
-  if (e.code === 'ArrowLeft')  { e.preventDefault(); skip(-10); }
-  if (e.code === 'ArrowUp')    { e.preventDefault(); setVolume(Math.min(1, volume+0.05)); }
-  if (e.code === 'ArrowDown')  { e.preventDefault(); setVolume(Math.max(0, volume-0.05)); }
-  if (e.code === 'KeyM')       toggleMute();
-  if (e.code === 'KeyS')       document.getElementById('shuffleBtn').classList.toggle('on');
-});
-
-/* ════════════════════════════════════
-   VOLUME BAR HOVER KNOB
+   VOLUME HOVER KNOB
 ════════════════════════════════════ */
 document.getElementById('volBar').addEventListener('mouseenter', () => {
   document.getElementById('volKnob').style.opacity='1';
@@ -2293,16 +1917,46 @@ document.getElementById('volBar').addEventListener('mouseleave', () => {
   document.getElementById('volKnob').style.opacity='0';
 });
 
-// Initialize sidebar on load
+/* ════════════════════════════════════
+   VOL ICON
+════════════════════════════════════ */
+function updateVolIcon() {
+  const v = muted ? 0 : volume;
+  document.getElementById('volIcon').innerHTML = v === 0
+    ? `<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>`
+    : v < 0.5
+    ? `<path d="M7 9v6h4l5 5V4l-5 5H7zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>`
+    : `<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>`;
+}
+
+/* ════════════════════════════════════
+   KEYBOARD SHORTCUTS
+════════════════════════════════════ */
+document.addEventListener('keydown', e => {
+  if (e.target === searchInput) return;
+  if (e.code === 'Space')      { e.preventDefault(); togglePlay(); }
+  if (e.code === 'ArrowRight') { e.preventDefault(); seekRelative(10); }
+  if (e.code === 'ArrowLeft')  { e.preventDefault(); seekRelative(-10); }
+  if (e.code === 'ArrowUp')    { e.preventDefault(); setVolume(Math.min(1, volume+0.05)); }
+  if (e.code === 'ArrowDown')  { e.preventDefault(); setVolume(Math.max(0, volume-0.05)); }
+  if (e.code === 'KeyM')       toggleMute();
+  if (e.code === 'KeyS')       document.getElementById('shuffleBtn').classList.toggle('on');
+});
+
+/* ════════════════════════════════════
+   INIT SIDEBAR
+════════════════════════════════════ */
 renderSidebar();
 
-// Register PWA Service Worker
+/* ════════════════════════════════════
+   PWA SERVICE WORKER
+════════════════════════════════════ */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').then(reg => {
-      console.log('PWA Service Worker registered:', reg.scope);
+      console.log('PWA SW registered:', reg.scope);
     }).catch(err => {
-      console.error('PWA SW registration failed:', err);
+      console.error('PWA SW failed:', err);
     });
   });
 }
