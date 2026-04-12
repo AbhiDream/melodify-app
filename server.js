@@ -139,8 +139,8 @@ app.get("/info/:videoId", (req, res) => {
 
 // ── STREAM endpoint — pipes audio directly to browser, no temp files ──────────
 // GET /stream/:videoId
-// Uses yt-dlp stdout → ffmpeg stdin → response stream
-// Starts sending data in ~2-3 seconds, no waiting for full download
+// Uses yt-dlp to extract and convert to MP3, pipes directly to response
+// yt-dlp handles the conversion for better performance on Render
 app.get("/stream/:videoId", (req, res) => {
   const { videoId } = req.params;
   const url = `https://www.youtube.com/watch?v=${videoId}`;
@@ -152,9 +152,9 @@ app.get("/stream/:videoId", (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('X-Accel-Buffering', 'no'); // disable Nginx buffering on Render
 
-  // yt-dlp pipes raw audio to stdout
+  // yt-dlp extracts and converts to MP3, outputs to stdout
   const ytdlp = spawn('yt-dlp', [
-    '-f', 'bestaudio/best',
+    '-x', '--audio-format', 'mp3', '--audio-quality', '128K',
     '--no-playlist',
     '--no-warnings',
     '--quiet',
@@ -163,33 +163,12 @@ app.get("/stream/:videoId", (req, res) => {
   ]);
   console.log('[stream] yt-dlp spawned');
 
-  // ffmpeg reads from stdin, encodes to mp3, writes to stdout
-  const ffmpeg = spawn('ffmpeg', [
-    '-loglevel', 'error',
-    '-i', 'pipe:0',     // read from stdin
-    '-vn',
-    '-acodec', 'libmp3lame',
-    '-ab', '128k',
-    '-ar', '44100',
-    '-f', 'mp3',
-    'pipe:1'            // write to stdout
-  ]);
-  console.log('[stream] ffmpeg spawned');
-
-  // Pipe: yt-dlp stdout → ffmpeg stdin
-  ytdlp.stdout.pipe(ffmpeg.stdin);
-  console.log('[stream] piped yt-dlp to ffmpeg');
-
-  // Pipe: ffmpeg stdout → HTTP response
-  ffmpeg.stdout.pipe(res);
-  console.log('[stream] piped ffmpeg to response');
+  // Pipe: yt-dlp stdout → HTTP response
+  ytdlp.stdout.pipe(res);
+  console.log('[stream] piped yt-dlp to response');
 
   // Error handling
   ytdlp.stderr.on('data', d => console.log(`[yt-dlp] ${d.toString().trim()}`));
-  ffmpeg.stderr.on('data', d => {
-    const msg = d.toString().trim();
-    if (msg) console.log(`[ffmpeg] ${msg.slice(0, 100)}`);
-  });
 
   ytdlp.on('error', err => {
     console.error('[stream] yt-dlp error:', err.message);
@@ -199,24 +178,13 @@ app.get("/stream/:videoId", (req, res) => {
 
   ytdlp.on('close', code => {
     console.log(`[stream] yt-dlp exit ${code}`);
-  });
-
-  ffmpeg.on('error', err => {
-    console.error('[stream] ffmpeg error:', err.message);
-    if (!res.headersSent) res.status(500).json({ error: err.message });
-    else res.end();
-  });
-
-  ffmpeg.on('close', code => {
-    console.log(`[stream] done ${videoId} (ffmpeg exit ${code})`);
     res.end();
   });
 
-  // If client disconnects, kill both processes
+  // If client disconnects, kill process
   req.on('close', () => {
     console.log(`[stream] client disconnected ${videoId}`);
     ytdlp.kill('SIGKILL');
-    ffmpeg.kill('SIGKILL');
   });
 });
 
