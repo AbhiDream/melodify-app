@@ -18,13 +18,7 @@ app.get('/manifest.json', (req, res) => {
 app.use(express.static(__dirname));
 
 
-// ── Keep-alive ping ───────────────────────────────────────────────────────────
-const SELF_URL = process.env.RENDER_EXTERNAL_URL;
-if (SELF_URL) {
-  setInterval(() => {
-    http.get(`${SELF_URL}/health`).on('error', () => {});
-  }, 8 * 60 * 1000);
-}
+// ── Health check ───────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.send('OK'));
 
 // ── Debug ─────────────────────────────────────────────────────────────────────
