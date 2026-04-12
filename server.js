@@ -154,15 +154,18 @@ app.get("/stream/:videoId", (req, res) => {
 
   // yt-dlp pipes raw audio to stdout
   const ytdlp = spawn('yt-dlp', [
-    '-f', 'bestaudio[ext=webm]/bestaudio/best',
+    '-f', 'bestaudio/best',
     '--no-playlist',
     '--no-warnings',
+    '--quiet',
     '-o', '-',          // output to stdout
     url
   ]);
+  console.log('[stream] yt-dlp spawned');
 
   // ffmpeg reads from stdin, encodes to mp3, writes to stdout
   const ffmpeg = spawn('ffmpeg', [
+    '-loglevel', 'error',
     '-i', 'pipe:0',     // read from stdin
     '-vn',
     '-acodec', 'libmp3lame',
@@ -171,12 +174,15 @@ app.get("/stream/:videoId", (req, res) => {
     '-f', 'mp3',
     'pipe:1'            // write to stdout
   ]);
+  console.log('[stream] ffmpeg spawned');
 
   // Pipe: yt-dlp stdout → ffmpeg stdin
   ytdlp.stdout.pipe(ffmpeg.stdin);
+  console.log('[stream] piped yt-dlp to ffmpeg');
 
   // Pipe: ffmpeg stdout → HTTP response
   ffmpeg.stdout.pipe(res);
+  console.log('[stream] piped ffmpeg to response');
 
   // Error handling
   ytdlp.stderr.on('data', d => console.log(`[yt-dlp] ${d.toString().trim()}`));
@@ -189,6 +195,10 @@ app.get("/stream/:videoId", (req, res) => {
     console.error('[stream] yt-dlp error:', err.message);
     if (!res.headersSent) res.status(500).json({ error: err.message });
     else res.end();
+  });
+
+  ytdlp.on('close', code => {
+    console.log(`[stream] yt-dlp exit ${code}`);
   });
 
   ffmpeg.on('error', err => {
