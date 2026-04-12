@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: melodify-app
+    env: node
+    buildCommand: bash build.sh
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
