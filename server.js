@@ -144,11 +144,12 @@ app.get("/stream/:videoId", (req, res) => {
   res.setHeader('Content-Type', 'audio/mpeg');
   res.setHeader('Transfer-Encoding', 'chunked');
   res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('X-Accel-Buffering', 'no'); // disable Nginx buffering on Render
+  res.setHeader('Connection', 'keep-alive');
 
   // yt-dlp extracts and converts to MP3, outputs to stdout
   const ytdlp = spawn('yt-dlp', [
-    '-x', '--audio-format', 'mp3', '--audio-quality', '128K',
+    '-f', 'bestaudio[abr<=128]/bestaudio/best',
+    '-x', '--audio-format', 'mp3', '--audio-quality', '64K',
     '--no-playlist',
     '--no-warnings',
     '--quiet',
@@ -157,6 +158,7 @@ app.get("/stream/:videoId", (req, res) => {
     '--force-ipv4',
     '--socket-timeout', '30',
     '--no-check-certificates',
+    '--buffer-size', '16K',
     '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
     '--geo-bypass',
     '-o', '-',          // output to stdout
