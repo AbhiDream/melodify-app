@@ -10,34 +10,27 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ── Static files — serve from project root ────────────────────────────────────
-// manifest.json with correct MIME type
-app.get("/manifest.json", (req, res) => {
-  res.setHeader("Content-Type", "application/manifest+json");
-  res.sendFile(path.join(__dirname, "manifest.json"));
+// ── Static files ──────────────────────────────────────────────────────────────
+app.get('/manifest.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/manifest+json');
+  res.sendFile(path.join(__dirname, 'public', 'manifest.json'));
 });
-// sw.js with correct MIME type
-app.get("/sw.js", (req, res) => {
-  res.setHeader("Content-Type", "application/javascript");
-  res.sendFile(path.join(__dirname, "sw.js"));
-});
-// Everything else (index.html, icon.png, etc.) from root
-app.use(express.static(__dirname, { index: "index.html" }));
+app.use(express.static(path.join(__dirname, 'public')));
 
-// ── Keep-alive ping (prevents Render free-tier spin-down) ────────────────────
+// ── Keep-alive ping ───────────────────────────────────────────────────────────
 const SELF_URL = process.env.RENDER_EXTERNAL_URL;
 if (SELF_URL) {
   setInterval(() => {
-    http.get(`${SELF_URL}/health`).on("error", () => {});
+    http.get(`${SELF_URL}/health`).on('error', () => {});
   }, 8 * 60 * 1000);
 }
-app.get("/health", (req, res) => res.send("OK"));
+app.get('/health', (req, res) => res.send('OK'));
 
 // ── Debug endpoint ────────────────────────────────────────────────────────────
-app.get("/debug", (req, res) => {
-  exec("which yt-dlp && yt-dlp --version", (err, stdout) => {
+app.get('/debug', (req, res) => {
+  exec('which yt-dlp && yt-dlp --version', (err, stdout) => {
     const ytdlp = err ? `NOT FOUND: ${err.message}` : stdout.trim();
-    exec("which ffmpeg && ffmpeg -version 2>&1 | head -1", (err2, stdout2) => {
+    exec('which ffmpeg && ffmpeg -version 2>&1 | head -1', (err2, stdout2) => {
       const ffmpeg = err2 ? `NOT FOUND: ${err2.message}` : stdout2.trim();
       res.json({ yt_dlp: ytdlp, ffmpeg, cwd: __dirname, chunks_dir: CHUNK_DIR });
     });
@@ -48,39 +41,88 @@ app.get("/debug", (req, res) => {
 const CHUNK_DIR = path.join(__dirname, "chunks");
 if (!fs.existsSync(CHUNK_DIR)) fs.mkdirSync(CHUNK_DIR, { recursive: true });
 
-// ── Audio URL cache — avoids calling yt-dlp twice for same video ──────────────
-// YouTube CDN URLs expire after ~6h, so we cache for 5h
-const audioUrlCache = {};
-const AUDIO_URL_TTL = 5 * 60 * 60 * 1000;
+// ── Full audio file cache ─────────────────────────────────────────────────────
+// Instead of streaming from YouTube CDN (blocked on Render), we download the
+// full audio file once via yt-dlp, then ffmpeg trims it locally.
+// Cache: videoId → { filePath, ts }
+const fullAudioCache = {};
+const FULL_AUDIO_TTL = 4 * 60 * 60 * 1000; // 4 hours
+const fullAudioLocks = new Set(); // videoIds currently being downloaded
+const fullAudioWaiters = {}; // videoId → [{ resolve, reject }]
 
-function getAudioUrl(videoId) {
-  const entry = audioUrlCache[videoId];
-  if (entry && Date.now() - entry.ts < AUDIO_URL_TTL) {
-    console.log(`[cache hit] audio URL for ${videoId}`);
-    return Promise.resolve(entry.url);
+function getFullAudio(videoId) {
+  // Return cached path if still fresh
+  const entry = fullAudioCache[videoId];
+  if (entry && fs.existsSync(entry.filePath) && Date.now() - entry.ts < FULL_AUDIO_TTL) {
+    console.log(`[audio-cache] hit for ${videoId}`);
+    return Promise.resolve(entry.filePath);
   }
+
+  // If already downloading, queue as waiter
+  if (fullAudioLocks.has(videoId)) {
+    console.log(`[audio-cache] queuing waiter for ${videoId}`);
+    return new Promise((resolve, reject) => {
+      if (!fullAudioWaiters[videoId]) fullAudioWaiters[videoId] = [];
+      fullAudioWaiters[videoId].push({ resolve, reject });
+    });
+  }
+
+  fullAudioLocks.add(videoId);
+  const outFile = path.join(CHUNK_DIR, `${videoId}_full.webm`);
+
+  // Delete stale file if exists
+  if (fs.existsSync(outFile)) {
+    try { fs.unlinkSync(outFile); } catch(_) {}
+  }
+
+  console.log(`[yt-dlp] downloading full audio for ${videoId}`);
+
   return new Promise((resolve, reject) => {
-    const cmd = `yt-dlp -f "bestaudio[ext=webm]/bestaudio/best" --get-url "https://www.youtube.com/watch?v=${videoId}"`;
-    console.log(`[yt-dlp] fetching audio URL for ${videoId}`);
-    exec(cmd, { timeout: 40000 }, (err, stdout) => {
-      if (err || !stdout.trim()) return reject(err || new Error("No URL returned"));
-      const url = stdout.trim().split("\n")[0];
-      audioUrlCache[videoId] = { url, ts: Date.now() };
-      console.log(`[yt-dlp] got audio URL for ${videoId}`);
-      resolve(url);
+    // yt-dlp downloads via its own HTTP client which handles YouTube's IP restrictions
+    // -x = extract audio, --no-playlist, output to known path
+    const cmd = [
+      'yt-dlp',
+      '-f "bestaudio[ext=webm]/bestaudio/best"',
+      '--no-playlist',
+      '--no-warnings',
+      `--output "${outFile}"`,
+      `"https://www.youtube.com/watch?v=${videoId}"`
+    ].join(' ');
+
+    exec(cmd, { maxBuffer: 500 * 1024 * 1024, timeout: 5 * 60 * 1000 }, (err) => {
+      fullAudioLocks.delete(videoId);
+
+      if (err || !fs.existsSync(outFile)) {
+        console.error(`[yt-dlp] download failed for ${videoId}:`, err?.message);
+        const e = err || new Error('File not created');
+        (fullAudioWaiters[videoId] || []).forEach(w => w.reject(e));
+        delete fullAudioWaiters[videoId];
+        return reject(e);
+      }
+
+      console.log(`[yt-dlp] download complete for ${videoId}`);
+      fullAudioCache[videoId] = { filePath: outFile, ts: Date.now() };
+
+      (fullAudioWaiters[videoId] || []).forEach(w => w.resolve(outFile));
+      delete fullAudioWaiters[videoId];
+      resolve(outFile);
     });
   });
 }
 
-// Clear expired audio URL cache entries every 30 min
+// Clean expired full audio files every hour
 setInterval(() => {
   const now = Date.now();
-  for (const id of Object.keys(audioUrlCache)) {
-    if (now - audioUrlCache[id].ts > AUDIO_URL_TTL) delete audioUrlCache[id];
-  }
-}, 30 * 60 * 1000);
+  Object.entries(fullAudioCache).forEach(([id, entry]) => {
+    if (now - entry.ts > FULL_AUDIO_TTL) {
+      try { fs.unlinkSync(entry.filePath); } catch(_) {}
+      delete fullAudioCache[id];
+      console.log(`[cleanup] removed full audio for ${id}`);
+    }
+  });
+}, 60 * 60 * 1000);
 
-// ── Trending cache ────────────────────────────────────────────────────────────
+// ── Trending ──────────────────────────────────────────────────────────────────
 let trendingCache = null;
 let trendingFetchedAt = 0;
 const TRENDING_TTL = 60 * 60 * 1000;
@@ -90,15 +132,15 @@ app.get("/trending", (req, res) => {
   if (trendingCache && now - trendingFetchedAt < TRENDING_TTL) {
     return res.json(trendingCache);
   }
-  const fallbackCmd = `yt-dlp "ytsearch10:top trending music india today 2025" --dump-json --no-download --flat-playlist`;
-  exec(fallbackCmd, { maxBuffer: 10 * 1024 * 1024, timeout: 60000 }, (err, stdout) => {
+  const fallback = `yt-dlp "ytsearch10:top trending music india today 2025" --dump-json --no-download --flat-playlist`;
+  exec(fallback, { maxBuffer: 10 * 1024 * 1024, timeout: 60000 }, (err, stdout) => {
     if (err) return res.status(500).json({ error: err.message });
     try {
       const results = parseYtdlpLines(stdout);
       trendingCache = results;
       trendingFetchedAt = Date.now();
       res.json(results);
-    } catch (e) { res.status(500).json({ error: "Parse error" }); }
+    } catch(e) { res.status(500).json({ error: "Parse error" }); }
   });
 });
 
@@ -147,12 +189,12 @@ Output MUST be strict JSON array with NO extra text or markdown. Format:
             resolve({ id: d.id, title: d.title, duration: d.duration || 0,
               thumbnail: d.thumbnail || `https://i.ytimg.com/vi/${d.id}/mqdefault.jpg`,
               uploader: d.uploader || d.channel || "Unknown" });
-          } catch (e) { resolve(null); }
+          } catch(e) { resolve(null); }
         });
     }));
     const resolved = (await Promise.all(promises)).filter(Boolean);
     res.json(resolved);
-  } catch (error) {
+  } catch(error) {
     console.error("AI DJ Error:", error.message);
     res.status(500).json({ error: "Failed to generate playlist" });
   }
@@ -173,7 +215,7 @@ app.get("/search", (req, res) => {
             uploader: d.uploader || d.channel || "Unknown" };
         });
         res.json(results);
-      } catch (e) { res.status(500).json({ error: "Parse error" }); }
+      } catch(e) { res.status(500).json({ error: "Parse error" }); }
     });
 });
 
@@ -187,11 +229,12 @@ app.get("/info/:videoId", (req, res) => {
         const d = JSON.parse(stdout.trim());
         res.json({ id: d.id, title: d.title, duration: d.duration,
           thumbnail: d.thumbnail, uploader: d.uploader || d.channel });
-      } catch (e) { res.status(500).json({ error: "Parse error" }); }
+      } catch(e) { res.status(500).json({ error: "Parse error" }); }
     });
 });
 
 // ── Chunk endpoint ────────────────────────────────────────────────────────────
+// Strategy: yt-dlp downloads full audio → ffmpeg trims locally (no CDN streaming)
 const chunkLocks = new Set();
 
 app.get("/chunk/:videoId", async (req, res) => {
@@ -200,15 +243,14 @@ app.get("/chunk/:videoId", async (req, res) => {
   const duration = parseFloat(req.query.duration) || 60;
   const chunkFile = path.join(CHUNK_DIR, `${videoId}_${start}_${duration}.mp3`);
 
-  // Serve cached chunk immediately
+  // Serve cached chunk
   if (fs.existsSync(chunkFile)) {
-    console.log(`[chunk] serving cached ${videoId}@${start}`);
+    console.log(`[chunk] cache hit ${videoId}@${start}`);
     return res.sendFile(chunkFile);
   }
 
   // Queue if already being generated
   if (chunkLocks.has(chunkFile)) {
-    console.log(`[chunk] waiting for in-progress ${videoId}@${start}`);
     let attempts = 0;
     const iv = setInterval(() => {
       if (!chunkLocks.has(chunkFile) || attempts++ > 120) {
@@ -221,37 +263,37 @@ app.get("/chunk/:videoId", async (req, res) => {
   }
 
   chunkLocks.add(chunkFile);
-  console.log(`[chunk] generating ${videoId}@${start} dur=${duration}`);
+  console.log(`[chunk] generating ${videoId}@${start}s dur=${duration}s`);
 
   try {
-    const audioUrl = await getAudioUrl(videoId);
+    // Step 1: Download full audio via yt-dlp (handles YouTube IP restrictions)
+    const fullAudioPath = await getFullAudio(videoId);
 
+    // Step 2: Trim locally with ffmpeg — no network needed, always works
     const ffCmd = [
-      "ffmpeg",
-      "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+      'ffmpeg',
       `-ss ${start}`,
       `-t ${duration}`,
-      `-i "${audioUrl}"`,
-      "-vn -acodec libmp3lame -ab 128k -ar 44100",
-      "-y",
-      `"${chunkFile}"`,
-    ].join(" ");
+      `-i "${fullAudioPath}"`,
+      '-vn -acodec libmp3lame -ab 128k -ar 44100',
+      '-y',
+      `"${chunkFile}"`
+    ].join(' ');
 
-    exec(ffCmd, { maxBuffer: 100 * 1024 * 1024, timeout: 120000 }, (err) => {
+    exec(ffCmd, { maxBuffer: 50 * 1024 * 1024, timeout: 60000 }, (err) => {
       chunkLocks.delete(chunkFile);
       if (err || !fs.existsSync(chunkFile)) {
-        console.error(`[chunk] ffmpeg failed for ${videoId}@${start}:`, err?.message);
-        // Bust URL cache so next attempt re-fetches a fresh URL
-        delete audioUrlCache[videoId];
-        return res.status(500).json({ error: "Chunk creation failed" });
+        console.error(`[chunk] ffmpeg trim failed for ${videoId}@${start}:`, err?.message);
+        return res.status(500).json({ error: "Chunk trim failed" });
       }
       console.log(`[chunk] done ${videoId}@${start}`);
       res.sendFile(chunkFile);
     });
-  } catch (err) {
+
+  } catch(err) {
     chunkLocks.delete(chunkFile);
-    console.error(`[chunk] error ${videoId}@${start}:`, err.message);
-    res.status(500).json({ error: err.message });
+    console.error(`[chunk] getFullAudio failed for ${videoId}:`, err.message);
+    res.status(500).json({ error: `Download failed: ${err.message}` });
   }
 });
 
@@ -262,28 +304,15 @@ app.delete("/chunk/:videoId", (req, res) => {
   const keepFrom  = Math.max(0, keepStart - 60);
   try {
     fs.readdirSync(CHUNK_DIR)
-      .filter(f => f.startsWith(`${videoId}_`))
+      .filter(f => f.startsWith(`${videoId}_`) && !f.endsWith('_full.webm'))
       .forEach(f => {
         const parts = f.replace(".mp3", "").split("_");
         const cs = parseFloat(parts[parts.length - 2]);
-        if (cs < keepFrom) { try { fs.unlinkSync(path.join(CHUNK_DIR, f)); } catch (_) {} }
+        if (cs < keepFrom) { try { fs.unlinkSync(path.join(CHUNK_DIR, f)); } catch(_) {} }
       });
-  } catch (_) {}
+  } catch(_) {}
   res.json({ ok: true });
 });
-
-// ── Periodic full chunk cleanup (keep disk clean on Render free tier) ─────────
-setInterval(() => {
-  try {
-    const now = Date.now();
-    fs.readdirSync(CHUNK_DIR).forEach(f => {
-      const fp = path.join(CHUNK_DIR, f);
-      try {
-        if (now - fs.statSync(fp).mtimeMs > 2 * 60 * 60 * 1000) fs.unlinkSync(fp);
-      } catch (_) {}
-    });
-  } catch (_) {}
-}, 30 * 60 * 1000);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🎵 Melodify running on port ${PORT}`));
