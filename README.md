@@ -1,9 +1,9 @@
 <div align="center">
   <img src="https://raw.githubusercontent.com/abhidream/melodify-app/main/public/icon.png" alt="Melodify Logo" width="120" style="border-radius: 20px;">
 
-  # 🎵 Melodify (Spotify Clone)
+  # 🎵 Melodify — The Ultimate Open Source Spotify Clone
 
-  **A blazing-fast, beautiful music player that streams YouTube audio in 10-second chunks with AI DJ capabilities.**
+  **A blazing-fast, beautiful open-source music player and web-based Spotify alternative. Stream ad-free music instantly with our premium Spotify clone UI, Next-Gen AI DJ, and zero-lag YouTube audio streaming engine.**
 
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
   [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
