@@ -13,44 +13,205 @@ app.use(express.json());
 // ── Static files ──────────────────────────────────────────────────────────────
 app.get('/manifest.json', (req, res) => {
   res.setHeader('Content-Type', 'application/manifest+json');
-  res.sendFile(path.join(__dirname, 'manifest.json'));
+  res.sendFile(path.join(__dirname, 'public', 'manifest.json'));
 });
-app.use(express.static(__dirname));
+app.use(express.static(path.join(__dirname, 'public')));
 
-
-// ── Health check ───────────────────────────────────────────────────────────
+// ── Keep-alive ────────────────────────────────────────────────────────────────
+const SELF_URL = process.env.RENDER_EXTERNAL_URL;
+if (SELF_URL) {
+  setInterval(() => http.get(`${SELF_URL}/health`).on('error', () => {}), 8 * 60 * 1000);
+}
 app.get('/health', (req, res) => res.send('OK'));
-
-// ── Debug ─────────────────────────────────────────────────────────────────────
 app.get('/debug', (req, res) => {
   exec('which yt-dlp && yt-dlp --version', (err, stdout) => {
-    const ytdlp = err ? `NOT FOUND: ${err.message}` : stdout.trim();
     exec('which ffmpeg && ffmpeg -version 2>&1 | head -1', (err2, stdout2) => {
-      const ffmpeg = err2 ? `NOT FOUND: ${err2.message}` : stdout2.trim();
-      res.json({ yt_dlp: ytdlp, ffmpeg, cwd: __dirname });
+      res.json({ yt_dlp: err ? 'NOT FOUND' : stdout.trim(), ffmpeg: err2 ? 'NOT FOUND' : stdout2.trim(), cwd: __dirname });
     });
   });
 });
 
-// ── Trending ──────────────────────────────────────────────────────────────────
+// ── Chunks directory ──────────────────────────────────────────────────────────
+const CHUNK_DIR = path.join(__dirname, "chunks");
+if (!fs.existsSync(CHUNK_DIR)) fs.mkdirSync(CHUNK_DIR, { recursive: true });
+
+// ══════════════════════════════════════════════════════
+// SEARCH CACHE — avoid hitting YouTube for same query
+// ══════════════════════════════════════════════════════
+const searchCache = new Map(); // query → { results, ts }
+const SEARCH_TTL = 10 * 60 * 1000; // 10 minutes
+
+app.get("/search", (req, res) => {
+  const query = (req.query.q || '').trim();
+  if (!query) return res.status(400).json({ error: "No query" });
+
+  // Return cached result immediately
+  const cached = searchCache.get(query);
+  if (cached && Date.now() - cached.ts < SEARCH_TTL) {
+    console.log(`[search cache] hit: ${query}`);
+    return res.json(cached.results);
+  }
+
+  console.log(`[search] querying: ${query}`);
+
+  // --flat-playlist = only basic metadata, much faster than full --dump-json
+  // ytsearch5 instead of 8 = faster (5 results is plenty)
+  // --no-warnings = skip warning output
+  const cmd = `yt-dlp "ytsearch5:${query}" --flat-playlist --dump-json --no-download --no-warnings`;
+
+  exec(cmd, { maxBuffer: 10 * 1024 * 1024, timeout: 30000 }, (err, stdout) => {
+    if (err) return res.status(500).json({ error: err.message });
+    try {
+      const results = stdout.trim().split("\n").filter(Boolean).map(line => {
+        const d = JSON.parse(line);
+        return {
+          id: d.id,
+          title: d.title,
+          duration: d.duration || 0,
+          thumbnail: d.thumbnail || `https://i.ytimg.com/vi/${d.id}/mqdefault.jpg`,
+          uploader: d.uploader || d.channel || d.uploader_id || "Unknown",
+        };
+      });
+      searchCache.set(query, { results, ts: Date.now() });
+      res.json(results);
+    } catch (e) {
+      res.status(500).json({ error: "Parse error" });
+    }
+  });
+});
+
+// ══════════════════════════════════════════════════════
+// AUDIO URL CACHE — #1 speedup: don't call yt-dlp --get-url
+// for every single chunk of the same song
+// ══════════════════════════════════════════════════════
+const audioUrlCache = new Map(); // videoId → { url, ts }
+const AUDIO_URL_TTL = 5 * 60 * 60 * 1000; // YouTube URLs expire ~6h, cache 5h
+
+function getAudioUrl(videoId) {
+  const cached = audioUrlCache.get(videoId);
+  if (cached && Date.now() - cached.ts < AUDIO_URL_TTL) {
+    console.log(`[url cache] hit: ${videoId}`);
+    return Promise.resolve(cached.url);
+  }
+
+  return new Promise((resolve, reject) => {
+    console.log(`[yt-dlp] fetching URL for ${videoId}`);
+    const cmd = `yt-dlp -f "bestaudio[ext=webm]/bestaudio/best" --get-url --no-warnings "https://www.youtube.com/watch?v=${videoId}"`;
+    exec(cmd, { timeout: 20000 }, (err, stdout) => {
+      if (err || !stdout.trim()) return reject(err || new Error("No URL"));
+      const url = stdout.trim().split("\n")[0];
+      audioUrlCache.set(videoId, { url, ts: Date.now() });
+      console.log(`[yt-dlp] got URL for ${videoId}`);
+      resolve(url);
+    });
+  });
+}
+
+// ══════════════════════════════════════════════════════
+// CHUNK ENDPOINT — uses cached audio URL, fast seek
+// ══════════════════════════════════════════════════════
+const chunkLocks = new Set();
+
+app.get("/chunk/:videoId", async (req, res) => {
+  const { videoId } = req.params;
+  const start    = parseFloat(req.query.start)    || 0;
+  const duration = parseFloat(req.query.duration) || 30;
+  const chunkFile = path.join(CHUNK_DIR, `${videoId}_${start}_${duration}.mp3`);
+
+  // Serve from disk cache immediately
+  if (fs.existsSync(chunkFile)) {
+    console.log(`[chunk] cache hit ${videoId}@${start}`);
+    return res.sendFile(chunkFile);
+  }
+
+  // Queue if already being generated
+  if (chunkLocks.has(chunkFile)) {
+    let attempts = 0;
+    const iv = setInterval(() => {
+      if (!chunkLocks.has(chunkFile) || attempts++ > 60) {
+        clearInterval(iv);
+        if (fs.existsSync(chunkFile)) res.sendFile(chunkFile);
+        else res.status(500).json({ error: "Concurrent generation failed" });
+      }
+    }, 300);
+    return;
+  }
+
+  chunkLocks.add(chunkFile);
+  console.log(`[chunk] generating ${videoId}@${start}s`);
+
+  try {
+    const audioUrl = await getAudioUrl(videoId);
+
+    const ffCmd = [
+      'ffmpeg',
+      '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
+      `-ss ${start}`,            // seek BEFORE -i = instant (no decode needed)
+      `-t ${duration}`,
+      `-i "${audioUrl}"`,
+      '-vn -acodec libmp3lame -ab 128k -ar 44100 -ac 2',
+      '-y',
+      `"${chunkFile}"`
+    ].join(' ');
+
+    exec(ffCmd, { maxBuffer: 50 * 1024 * 1024, timeout: 60000 }, (err) => {
+      chunkLocks.delete(chunkFile);
+      if (err || !fs.existsSync(chunkFile)) {
+        // Bust URL cache on failure — URL may have expired
+        audioUrlCache.delete(videoId);
+        console.error(`[chunk] failed ${videoId}@${start}:`, err?.message);
+        return res.status(500).json({ error: "Chunk failed" });
+      }
+      console.log(`[chunk] done ${videoId}@${start}`);
+      res.sendFile(chunkFile);
+    });
+  } catch (err) {
+    chunkLocks.delete(chunkFile);
+    console.error(`[chunk] url fetch failed:`, err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Cleanup old chunks ────────────────────────────────────────────────────────
+app.delete("/chunk/:videoId", (req, res) => {
+  const { videoId } = req.params;
+  const keepFrom = Math.max(0, (parseFloat(req.query.keepStart) || 0) - 30);
+  try {
+    fs.readdirSync(CHUNK_DIR).filter(f => f.startsWith(`${videoId}_`)).forEach(f => {
+      const parts = f.replace(".mp3", "").split("_");
+      const cs = parseFloat(parts[parts.length - 2]);
+      if (cs < keepFrom) try { fs.unlinkSync(path.join(CHUNK_DIR, f)); } catch(_) {}
+    });
+  } catch(_) {}
+  res.json({ ok: true });
+});
+
+// ── Trending (cached 1h) ──────────────────────────────────────────────────────
 let trendingCache = null, trendingFetchedAt = 0;
 const TRENDING_TTL = 60 * 60 * 1000;
 
 app.get("/trending", (req, res) => {
   if (trendingCache && Date.now() - trendingFetchedAt < TRENDING_TTL)
     return res.json(trendingCache);
-  exec(`yt-dlp "ytsearch10:top trending music india today 2025" --dump-json --no-download --flat-playlist`,
-    { maxBuffer: 10 * 1024 * 1024, timeout: 60000 }, (err, stdout) => {
-      if (err) return res.status(500).json({ error: err.message });
-      try {
-        trendingCache = parseYtdlpLines(stdout);
-        trendingFetchedAt = Date.now();
-        res.json(trendingCache);
-      } catch(e) { res.status(500).json({ error: "Parse error" }); }
-    });
+
+  // Direct trending page first, fallback to search
+  const cmd = `yt-dlp "https://www.youtube.com/feed/trending?bp=4gINGgt5dG1hX2NoYXJ0cw%3D%3D" --flat-playlist --dump-json --no-download --no-warnings --playlist-end 10`;
+  exec(cmd, { maxBuffer: 10 * 1024 * 1024, timeout: 30000 }, (err, stdout) => {
+    const fallback = () => {
+      exec(`yt-dlp "ytsearch10:top hindi songs 2025" --flat-playlist --dump-json --no-download --no-warnings`,
+        { maxBuffer: 10 * 1024 * 1024, timeout: 30000 }, (err2, stdout2) => {
+          if (err2) return res.status(500).json({ error: err2.message });
+          try { const r = parseLines(stdout2); trendingCache = r; trendingFetchedAt = Date.now(); res.json(r); }
+          catch(e) { res.status(500).json({ error: "Parse error" }); }
+        });
+    };
+    if (err) return fallback();
+    try { const r = parseLines(stdout); trendingCache = r; trendingFetchedAt = Date.now(); res.json(r); }
+    catch(e) { fallback(); }
+  });
 });
 
-function parseYtdlpLines(stdout) {
+function parseLines(stdout) {
   return stdout.trim().split("\n").filter(Boolean).slice(0, 10).map(line => {
     const d = JSON.parse(line);
     return { id: d.id, title: d.title, duration: d.duration || 0,
@@ -58,6 +219,19 @@ function parseYtdlpLines(stdout) {
       uploader: d.uploader || d.channel || d.uploader_id || "Unknown" };
   });
 }
+
+// ── Video info ────────────────────────────────────────────────────────────────
+app.get("/info/:videoId", (req, res) => {
+  const { videoId } = req.params;
+  exec(`yt-dlp "https://www.youtube.com/watch?v=${videoId}" --dump-json --no-download --no-warnings`,
+    { maxBuffer: 5 * 1024 * 1024, timeout: 20000 }, (err, stdout) => {
+      if (err) return res.status(500).json({ error: err.message });
+      try {
+        const d = JSON.parse(stdout.trim());
+        res.json({ id: d.id, title: d.title, duration: d.duration, thumbnail: d.thumbnail, uploader: d.uploader || d.channel });
+      } catch(e) { res.status(500).json({ error: "Parse error" }); }
+    });
+});
 
 // ── AI DJ ─────────────────────────────────────────────────────────────────────
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
@@ -67,7 +241,7 @@ app.post("/api/ai-dj", async (req, res) => {
   try {
     const prompt = `You are a Spotify AI DJ.
 User Mood: ${mood}
-Recent Listens: ${history && history.length ? history.join(", ") : "None"}
+Recent Listens: ${history?.length ? history.join(", ") : "None"}
 Recommend exactly 10 real popular songs matching this mood. Prefer Indian/Hindi/Punjabi and Global hits.
 Output ONLY a JSON array, no markdown:
 [{"title":"Song","artist":"Artist","search_query":"Song Artist official audio"}]`;
@@ -81,8 +255,12 @@ Output ONLY a JSON array, no markdown:
     let text = data.choices[0].message.content.trim().replace(/^```(json)?/, "").replace(/```$/, "").trim();
     const recs = JSON.parse(text);
     const promises = recs.map(song => new Promise(resolve => {
-      exec(`yt-dlp "ytsearch1:${song.search_query.replace(/"/g,'')}" --dump-json --no-download --flat-playlist`,
-        { maxBuffer: 5 * 1024 * 1024, timeout: 30000 }, (err, stdout) => {
+      const q = song.search_query.replace(/"/g, '');
+      // Check search cache first
+      const cached = searchCache.get(q);
+      if (cached && Date.now() - cached.ts < SEARCH_TTL && cached.results[0]) return resolve(cached.results[0]);
+      exec(`yt-dlp "ytsearch1:${q}" --flat-playlist --dump-json --no-download --no-warnings`,
+        { maxBuffer: 5 * 1024 * 1024, timeout: 20000 }, (err, stdout) => {
           if (err || !stdout.trim()) return resolve(null);
           try {
             const d = JSON.parse(stdout.trim());
@@ -99,102 +277,5 @@ Output ONLY a JSON array, no markdown:
   }
 });
 
-// ── Search ────────────────────────────────────────────────────────────────────
-app.get("/search", (req, res) => {
-  const query = req.query.q;
-  if (!query) return res.status(400).json({ error: "No query" });
-  exec(`yt-dlp "ytsearch8:${query}" --dump-json --no-download --flat-playlist`,
-    { maxBuffer: 10 * 1024 * 1024, timeout: 60000 }, (err, stdout) => {
-      if (err) return res.status(500).json({ error: err.message });
-      try {
-        res.json(stdout.trim().split("\n").filter(Boolean).map(line => {
-          const d = JSON.parse(line);
-          return { id: d.id, title: d.title, duration: d.duration,
-            thumbnail: d.thumbnail || `https://i.ytimg.com/vi/${d.id}/mqdefault.jpg`,
-            uploader: d.uploader || d.channel || "Unknown" };
-        }));
-      } catch(e) { res.status(500).json({ error: "Parse error" }); }
-    });
-});
-
-// ── Video info ────────────────────────────────────────────────────────────────
-app.get("/info/:videoId", (req, res) => {
-  const { videoId } = req.params;
-  exec(`yt-dlp "https://www.youtube.com/watch?v=${videoId}" --dump-json --no-download`,
-    { maxBuffer: 5 * 1024 * 1024, timeout: 30000 }, (err, stdout) => {
-      if (err) return res.status(500).json({ error: err.message });
-      try {
-        const d = JSON.parse(stdout.trim());
-        res.json({ id: d.id, title: d.title, duration: d.duration,
-          thumbnail: d.thumbnail, uploader: d.uploader || d.channel });
-      } catch(e) { res.status(500).json({ error: "Parse error" }); }
-    });
-});
-
-// ── STREAM endpoint — pipes audio directly to browser, no temp files ──────────
-// GET /stream/:videoId
-// Uses yt-dlp to extract and convert to MP3, pipes directly to response
-// yt-dlp handles the conversion for better performance on Render
-app.get("/stream/:videoId", (req, res) => {
-  const { videoId } = req.params;
-  const url = `https://www.youtube.com/watch?v=${videoId}`;
-
-  console.log(`[stream] starting ${videoId}`);
-
-  res.setHeader('Content-Type', 'audio/mpeg');
-  res.setHeader('Transfer-Encoding', 'chunked');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-
-  // yt-dlp extracts and converts to MP3, outputs to stdout
-  const ytdlp = spawn('yt-dlp', [
-    '-f', 'bestaudio[abr<=128]/bestaudio/best',
-    '-x', '--audio-format', 'mp3', '--audio-quality', '64K',
-    '--no-playlist',
-    '--no-warnings',
-    '--quiet',
-    '--no-cache-dir',
-    '--no-part',
-    '--force-ipv4',
-    '--socket-timeout', '30',
-    '--no-check-certificates',
-    '--buffer-size', '16K',
-    '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-    '--geo-bypass',
-    '-o', '-',          // output to stdout
-    url
-  ]);
-  console.log('[stream] yt-dlp spawned');
-
-  // Pipe: yt-dlp stdout → HTTP response
-  ytdlp.stdout.pipe(res);
-  console.log('[stream] piped yt-dlp to response');
-
-  // Error handling
-  ytdlp.stderr.on('data', d => console.log(`[yt-dlp] ${d.toString().trim()}`));
-
-  ytdlp.on('error', err => {
-    console.error('[stream] yt-dlp error:', err.message);
-    if (!res.headersSent) res.status(500).json({ error: err.message });
-    else res.end();
-  });
-
-  ytdlp.on('close', code => {
-    console.log(`[stream] yt-dlp exit ${code}`);
-    res.end();
-  });
-
-  // If client disconnects, kill process
-  req.on('close', () => {
-    console.log(`[stream] client disconnected ${videoId}`);
-    ytdlp.kill('SIGKILL');
-  });
-});
-
-// Keep old /chunk endpoint working as alias (forwards to stream)
-app.get("/chunk/:videoId", (req, res) => {
-  res.redirect(`/stream/${req.params.videoId}`);
-});
-
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🎵 Melodify running on port ${PORT}`));
+app.listen(PORT, () => console.log(`🎵 Melodify running on http://localhost:${PORT}`));
