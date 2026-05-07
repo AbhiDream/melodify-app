@@ -1,9 +1,11 @@
 services:
   - type: web
     name: melodify-app
-    env: node
-    buildCommand: bash build.sh
-    startCommand: node server.js
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
     envVars:
       - key: NODE_ENV
         value: production
+      - key: GROQ_API_KEY
+        sync: false
