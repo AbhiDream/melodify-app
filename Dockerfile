@@ -1,16 +1,20 @@
 FROM node:20-bullseye-slim
 
-# Install system deps
+# Install system deps including python3, pip, ffmpeg, curl
 RUN apt-get update && \
-    apt-get install -y ffmpeg python3 python3-pip curl && \
+    apt-get install -y --no-install-recommends \
+        ffmpeg \
+        python3 \
+        python3-pip \
+        curl \
+        ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
-# Install latest yt-dlp (binary, most reliable on cloud)
-RUN curl -sL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
-    -o /usr/local/bin/yt-dlp && chmod +x /usr/local/bin/yt-dlp
+# Install yt-dlp via pip3 (most reliable method on cloud)
+RUN pip3 install --no-cache-dir -U yt-dlp
 
-# Verify tools
-RUN yt-dlp --version && ffmpeg -version | head -1
+# Create symlink so yt-dlp is on PATH
+RUN ln -sf /usr/local/bin/yt-dlp /usr/bin/yt-dlp || true
 
 WORKDIR /app
 
@@ -19,7 +23,6 @@ RUN npm install --production
 
 COPY . .
 
-# Create chunks dir
 RUN mkdir -p /app/chunks
 
 EXPOSE 3000
