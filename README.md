@@ -77,7 +77,7 @@ choco install yt-dlp ffmpeg
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/yourusername/melodify-app.git
+   git clone https://github.com/AbhiDream/melodify-app.git
    cd melodify-app
    ```
 
