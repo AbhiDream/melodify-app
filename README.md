@@ -1,29 +1,26 @@
 <div align="center">
   <img src="https://raw.githubusercontent.com/AbhiDream/melodify-app/main/public/icon.png" alt="Melodify Logo" width="120" style="border-radius: 20px;">
 
-  # 🎵 Melodify v2.0 — The Ultimate Open Source Music Player
+  # Melodify
 
-  **A blazing-fast, beautiful open-source music player and web-based Spotify alternative. Stream ad-free music instantly with our premium glassmorphism UI, Smart Autoplay Queue, and zero-lag YouTube audio streaming engine.**
+  **An open-source web music player that streams audio directly from YouTube.**
 
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
   [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
-  [![Stars](https://img.shields.io/github/stars/AbhiDream/melodify-app?style=social)](https://github.com/AbhiDream/melodify-app/stargazers)
 
   <br />
   <img src="https://raw.githubusercontent.com/AbhiDream/melodify-app/main/public/screenshot.png" alt="Melodify UI Screenshot" width="800" style="border-radius: 12px; margin-top: 20px;">
   <br /><br />
-
-  *If you like this project, please give it a ⭐️ to show your support!*
 </div>
 
 ---
 
-## ✨ What's New in v2.0?
+## Features
 
-- **📱 Redesigned Premium "Glassmorphism" UI**: A beautiful, fresh light-theme UI with frosted glass effects, fluid animations, and a responsive layout for mobile and desktop (PWA ready).<br><br>
+- **Redesigned UI**: A responsive, light-themed interface with translucent elements (PWA ready).<br><br>
   <img src="https://raw.githubusercontent.com/AbhiDream/melodify-app/main/public/screenshot-player.png" alt="Melodify Player Close-up" width="600" style="border-radius: 12px; margin-bottom: 15px;">
-- **🎶 Smart Autoplay Queue**: Plays music non-stop! Our new recommendation engine dynamically queues up similar songs (based on artist and title fingerprints) so the music never stops.
-- **✨ Dynamic Peek Cards**: Gorgeous, interactive "Up Next" and "Previous" album peek cards that hover seamlessly behind the main player, syncing perfectly with your smart queue.<br><br>
+- **Autoplay Queue**: Automatically queues similar tracks based on artist and title matching to provide continuous playback.
+- **Queue Visualization**: "Up Next" and "Previous" track cards that sync with the current playback state.<br><br>
   <table>
     <tr>
       <td width="50%">
@@ -34,17 +31,17 @@
       </td>
     </tr>
   </table>
-- **🚀 Advanced Chunk Streaming Engine**: Streams audio from YouTube dynamically in **20-second chunks** — saving bandwidth and loading instantly (exactly like adaptive bitrate streaming).
-- **⚡ Zero-Lag Seeking**: Keeps chunks in cache and pre-fetches ahead. Seek backwards and forwards instantly without buffering!
-- **🔥 Trending Dashboard**: Live integration with YouTube's trending music feed.
-- **🔍 Global Search**: Lightning-fast YouTube search with local caching.
-- **💾 Auto-Cleanup**: Smart disk management automatically clears old audio chunks to prevent disk bloat.
+- **Chunk-Based Streaming**: Streams YouTube audio dynamically in 20-second segments to reduce bandwidth and initial load times.
+- **Buffered Seeking**: Retains recent chunks in memory and pre-fetches upcoming ones to minimize seek latency.
+- **Trending Feed**: Integration with YouTube's trending music feed.
+- **Search**: YouTube audio search with local caching.
+- **Disk Management**: Automatically purges old audio chunks to manage disk space.
 
 ---
 
-## 🏗 Architecture
+## Architecture
 
-Unlike standard YouTube downloaders that fetch the entire 100MB video before playing, **Melodify** acts as a smart proxy:
+Unlike standard downloaders that fetch the entire media file before playback, Melodify acts as a proxy:
 
 ```text
 Browser (Vanilla JS + Web Audio API)
@@ -54,22 +51,22 @@ Node.js Server (Express)
 YouTube Servers
 ```
 
-### The Smart Chunk System
-1. You request a song.
-2. Server rapidly resolves the audio URL and uses `ffmpeg` to slice audio chunks on the fly.
-3. As you listen, it pre-generates the next chunks in the background and stitches them seamlessly via the Web Audio API.
-4. Old chunks are actively managed and deleted.
+### Chunk System
+1. Client requests a track.
+2. Server resolves the audio URL and uses `ffmpeg` to slice audio chunks on the fly.
+3. Client pre-fetches upcoming chunks in the background and stitches them seamlessly via the Web Audio API.
+4. Server manages and deletes stale chunks.
 
 ---
 
-## 🛠️ Prerequisites
+## Prerequisites
 
-To run Melodify, you need **Node.js** and these two system dependencies installed and available in your system's PATH:
+To run Melodify, you need **Node.js** and the following system dependencies installed and available in your system's PATH:
 
-* **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** (Handles downloading and resolving from YT)
+* **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** (Handles downloading and resolving)
 * **[FFmpeg](https://ffmpeg.org/)** (Handles audio extraction and chunking)
 
-### Installation Guide:
+### Installation Guide
 
 **macOS (via Homebrew):**
 ```bash
@@ -87,11 +84,11 @@ pip3 install yt-dlp
 choco install yt-dlp ffmpeg
 ```
 
-*(Note: The app relies on the `pip` or standard package manager versions of yt-dlp being up to date to parse YouTube URLs correctly.)*
+*(Note: The app relies on the `pip` or standard package manager versions of yt-dlp being up to date to properly parse YouTube URLs.)*
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 1. **Clone the repository:**
    ```bash
@@ -106,17 +103,17 @@ choco install yt-dlp ffmpeg
 
 3. **Start the server:**
    ```bash
-   npm run dev    # For development (nodemon)
+   npm run dev    # For development
    # or
    npm start      # For production
    ```
 
-4. **Open in Browser:**
-   Navigate to **[http://localhost:3000](http://localhost:3000)** and enjoy! 🎧
+4. **Access the application:**
+   Navigate to `http://localhost:3000`
 
 ---
 
-## 📡 API Endpoints
+## API Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -128,25 +125,18 @@ choco install yt-dlp ffmpeg
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
-Contributions, issues, and feature requests are welcome! 
-Feel free to check [issues page](https://github.com/AbhiDream/melodify-app/issues).
+Contributions, issues, and feature requests are welcome. Feel free to check the [issues page](https://github.com/AbhiDream/melodify-app/issues).
 
 1. Fork the Project
 2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+3. Commit your Changes (`git commit -m 'feat: add some AmazingFeature'`)
 4. Push to the Branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
 ---
 
-## 📝 License
+## License
 
 Distributed under the MIT License. See `LICENSE` for more information.
-
----
-<div align="center">
-  <b>Built with ❤️ by the Open Source Community.</b><br>
-  <i>Don't forget to leave a star ⭐️ if you found this repository useful!</i>
-</div>
