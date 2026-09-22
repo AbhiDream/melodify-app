@@ -9,6 +9,10 @@
   [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
   [![Stars](https://img.shields.io/github/stars/AbhiDream/melodify-app?style=social)](https://github.com/AbhiDream/melodify-app/stargazers)
 
+  <br />
+  <img src="https://raw.githubusercontent.com/AbhiDream/melodify-app/main/public/screenshot.png" alt="Melodify UI Screenshot" width="800" style="border-radius: 12px; margin-top: 20px;">
+  <br /><br />
+
   *If you like this project, please give it a ⭐️ to show your support!*
 </div>
 
