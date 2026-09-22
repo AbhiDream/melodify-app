@@ -1,961 +1,501 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
-<title>Melodify Premium</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Melodify — Open Source Music Player</title>
+  <meta name="description" content="Melodify – free, ad-free music streaming via YouTube. Search any song and play instantly.">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icon.png">
+  <meta name="theme-color" content="#EAEBF0">
 
-<!-- PWA Manifest and iOS tags -->
-<link rel="manifest" href="/manifest.json" />
-<meta name="theme-color" content="#121212" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<link rel="apple-touch-icon" href="/icon.png" />
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
-<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Plus Jakarta Sans', 'sans-serif'] },
+          colors: {
+            app: { bg:'#EAEBF0', surface:'#FFFFFF', subtle:'#F3F4F8', accent:'#111218', muted:'#7E8494', green:'#1DB954' }
+          },
+          boxShadow: {
+            'card': '0 20px 50px -10px rgba(80,85,120,0.10), 0 8px 18px -6px rgba(0,0,0,0.05)',
+            'inner-card': 'inset 0 2px 6px rgba(255,255,255,0.9), 0 6px 20px rgba(0,0,0,0.04)',
+            'pill': '0 10px 24px -4px rgba(17,18,24,0.25)',
+          }
+        }
+      }
+    }
+  </script>
+
 <style>
-/* ════════════════════════════════════════════════════════
-   RESET & TOKENS
-════════════════════════════════════════════════════════ */
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --black:#000;
-  --base:#121212;
-  --elevated:#1a1a1a;
-  --card:#181818;
-  --highlight:#282828;
-  --hover:#2a2a2a;
-  --border:#ffffff0f;
-  --green:#1db954;
-  --green-bright:#1ed760;
-  --white:#fff;
-  --t1:#ffffff;
-  --t2:#b3b3b3;
-  --t3:#6a6a6a;
-  --sidebar-w:240px;
-  --player-h:90px;
-  --radius:8px;
-  --font:'Figtree',sans-serif;
-  --transition:0.15s ease;
+/* ── Base ───────────────────────────────────────────────── */
+:root {
+  --bg:#EAEBF0; --surface:#fff; --card:rgba(255,255,255,0.65);
+  --highlight:rgba(0,0,0,0.05); --border:rgba(0,0,0,0.08);
+  --t1:#111218; --t2:#7E8494; --t3:#adb3c5;
+  --green:#1db954; --green-bright:#1ed760;
+  --font:'Plus Jakarta Sans',sans-serif;
+  --player-h:76px; --transition:.18s ease;
 }
-html,body{height:100%;background:var(--black);color:var(--t1);font-family:var(--font);font-size:14px;overflow:hidden;-webkit-font-smoothing:antialiased}
-button{font-family:var(--font);cursor:pointer;border:none;background:none;color:inherit}
-img{display:block}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:var(--font);-webkit-font-smoothing:antialiased}
+body{background:var(--bg);color:var(--t1);overflow-x:hidden;user-select:none}
+button{background:none;border:none;cursor:pointer;font-family:var(--font)}
+input{font-family:var(--font)}
 a{color:inherit;text-decoration:none}
-::-webkit-scrollbar{width:6px}
+
+/* ── Ambient art background ─────────────────────────────── */
+#artBg{
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-size:cover;background-position:center;
+  filter:blur(80px) saturate(1.2);opacity:.12;
+  transition:background-image 1s ease;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────── */
+::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:#ffffff25;border-radius:3px}
-::-webkit-scrollbar-thumb:hover{background:#ffffff40}
+::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.15);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,0.25)}
 
-/* ════════════════════════════════════════════════════════
-   LAYOUT SHELL
-════════════════════════════════════════════════════════ */
-.shell{
-  display:grid;
-  grid-template-columns:var(--sidebar-w) 1fr;
-  grid-template-rows:1fr var(--player-h);
-  height:100vh;
-  gap:8px;
-  padding:8px 8px 0;
-  background:var(--black);
-}
-
-/* ════════════════════════════════════════════════════════
-   SIDEBAR
-════════════════════════════════════════════════════════ */
-.sidebar{
-  grid-row:1;
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-  overflow:hidden;
-}
-
-.sidebar-top{
-  background:var(--elevated);
-  border-radius:var(--radius);
-  padding:24px 12px 8px;
-  flex-shrink:0;
-}
-
-.logo{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  padding:0 12px;
-  margin-bottom:20px;
-}
-.logo svg{width:32px;height:32px;flex-shrink:0}
-.logo-text{font-size:23px;font-weight:800;letter-spacing:-0.5px;color:var(--white)}
-
-.nav-item{
-  display:flex;
-  align-items:center;
-  gap:14px;
-  padding:10px 12px;
-  border-radius:6px;
-  color:var(--t3);
-  font-size:14px;
-  font-weight:600;
-  transition:color var(--transition),background var(--transition);
-  cursor:pointer;
-  white-space:nowrap;
-}
-.nav-item svg{width:20px;height:20px;flex-shrink:0;fill:currentColor}
-.nav-item:hover{color:var(--white)}
-.nav-item.active{color:var(--white)}
-
-.sidebar-lib{
-  background:var(--elevated);
-  border-radius:var(--radius);
-  padding:16px 12px;
-  flex:1;
-  overflow:hidden;
-  display:flex;
-  flex-direction:column;
-  gap:0;
-}
-
-.lib-header{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:0 12px;
-  margin-bottom:16px;
-}
-.lib-title{
-  display:flex;align-items:center;gap:10px;
-  font-size:14px;font-weight:600;color:var(--t3);
-  cursor:pointer;transition:color var(--transition);
-}
-.lib-title:hover{color:var(--white)}
-.lib-title svg{width:20px;height:20px;fill:currentColor}
-.lib-add{
-  width:32px;height:32px;border-radius:50%;
-  display:flex;align-items:center;justify-content:center;
-  color:var(--t3);transition:color var(--transition),background var(--transition);
-}
-.lib-add:hover{color:var(--white);background:var(--highlight)}
-.lib-add svg{width:16px;height:16px;fill:currentColor}
-
-.lib-create{
-  background:var(--highlight);
-  border-radius:var(--radius);
-  padding:16px;
-  margin-bottom:8px;
-}
-.lib-create h4{font-size:14px;font-weight:700;margin-bottom:6px}
-.lib-create p{font-size:12px;color:var(--t2);margin-bottom:12px;line-height:1.5}
-.lib-create-btn{
-  background:var(--white);color:var(--black);
-  border-radius:500px;padding:7px 16px;
-  font-size:13px;font-weight:700;
-  transition:transform var(--transition),background var(--transition);
-}
-.lib-create-btn:hover{transform:scale(1.03);background:#e0e0e0}
-
-/* ════════════════════════════════════════════════════════
-   MAIN PANEL
-════════════════════════════════════════════════════════ */
-.main{
-  grid-row:1;
-  background:var(--elevated);
-  border-radius:var(--radius);
-  display:flex;
-  flex-direction:column;
-  overflow:hidden;
-  position:relative;
-}
-
-/* Top gradient from album art */
-.art-bg{
-  position:absolute;top:0;left:0;right:0;
-  height:380px;pointer-events:none;z-index:0;
-  transition:background 1.2s ease;
-  background:linear-gradient(180deg,#1a2a1a 0%,transparent 100%);
-}
-.art-bg::after{
-  content:'';position:absolute;inset:0;
-  background:linear-gradient(to bottom,transparent 60%,var(--elevated) 100%);
-}
-
-/* Top bar */
-.topbar{
-  position:relative;z-index:10;
-  display:flex;align-items:center;gap:12px;
-  padding:16px 24px 8px;
-  flex-shrink:0;
-}
-.nav-arrows{display:flex;gap:8px}
-.nav-arrow{
-  width:32px;height:32px;border-radius:50%;
-  background:rgba(0,0,0,.6);
-  display:flex;align-items:center;justify-content:center;
-  color:var(--white);transition:background var(--transition),transform var(--transition);
-}
-.nav-arrow:hover{background:rgba(0,0,0,.8);transform:scale(1.05)}
-.nav-arrow svg{width:18px;height:18px;fill:currentColor}
-
-.search-field{
-  flex:1;max-width:360px;position:relative;
-}
-.search-field svg{
-  position:absolute;left:13px;top:50%;transform:translateY(-50%);
-  width:16px;height:16px;fill:var(--black);pointer-events:none;
-}
-.search-input{
-  width:100%;background:#fff;color:var(--black);
-  border:2px solid transparent;border-radius:500px;
-  padding:9px 16px 9px 40px;
-  font-family:var(--font);font-size:14px;font-weight:500;
-  outline:none;transition:border-color var(--transition),box-shadow var(--transition);
-}
-.search-input::placeholder{color:#666}
-.search-input:focus{border-color:var(--white);box-shadow:0 0 0 3px rgba(255,255,255,.15)}
-
-.topbar-right{display:flex;align-items:center;gap:8px;margin-left:auto}
-.premium-btn{
-  background:var(--white);color:var(--black);
-  border-radius:500px;padding:8px 18px;
-  font-size:13px;font-weight:700;
-  transition:transform var(--transition),background var(--transition);
-}
-.premium-btn:hover{transform:scale(1.03);background:#e8e8e8}
-.avatar-btn{
-  width:32px;height:32px;border-radius:50%;
-  background:var(--green);
-  display:flex;align-items:center;justify-content:center;
-  font-size:13px;font-weight:800;color:var(--black);
-  transition:transform var(--transition);
-}
-.avatar-btn:hover{transform:scale(1.06)}
-
-/* Content scroll area */
-.content{
-  flex:1;overflow-y:auto;overflow-x:hidden;
-  position:relative;z-index:5;
-}
-.content-pad{padding:0 24px 120px}
-
-/* Section titles */
-.sec-title{
-  font-size:22px;font-weight:800;
-  color:var(--white);margin:28px 0 16px;
-}
-.sec-row{display:flex;align-items:center;justify-content:space-between;margin:28px 0 16px}
-.sec-title-sm{font-size:18px;font-weight:700;color:var(--white)}
-.see-all{font-size:12px;font-weight:700;color:var(--t3);letter-spacing:.8px;text-transform:uppercase;cursor:pointer;transition:color var(--transition)}
-.see-all:hover{color:var(--white)}
-
-/* ─ Greeting ─ */
-.greeting{font-size:30px;font-weight:800;margin:24px 0 20px}
-
-/* ─ Quick picks grid ─ */
-.quick-grid{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:8px;margin-bottom:32px;
-}
-.quick-tile{
-  background:var(--highlight);
-  border-radius:6px;
-  display:flex;align-items:center;
-  overflow:hidden;height:64px;cursor:pointer;
-  transition:background var(--transition);
-  position:relative;
-}
-.quick-tile:hover{background:#3a3a3a}
-.quick-tile:hover .quick-play{opacity:1;transform:translateY(0)}
-.quick-thumb{width:64px;height:64px;object-fit:cover;flex-shrink:0}
-.quick-label{font-size:14px;font-weight:700;padding:0 16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.quick-play{
-  position:absolute;right:12px;
-  width:40px;height:40px;border-radius:50%;
-  background:var(--green);
-  display:flex;align-items:center;justify-content:center;
-  opacity:0;transform:translateY(4px);
-  transition:opacity .2s,transform .2s,background .15s;
-  box-shadow:0 6px 20px rgba(0,0,0,.5);
-}
-.quick-play:hover{background:var(--green-bright) !important}
-.quick-play svg{width:18px;height:18px;fill:var(--black);margin-left:2px}
-
-/* ─ Card grid ─ */
-.card-grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
-  gap:16px;
-}
-.card{
-  background:var(--card);
-  border-radius:var(--radius);
-  padding:16px;cursor:pointer;
-  transition:background var(--transition);
-  position:relative;
-}
-.card:hover{background:var(--highlight)}
-.card:hover .card-play{opacity:1;transform:translateY(0)}
-.card-art{
-  width:100%;aspect-ratio:1;
-  border-radius:6px;object-fit:cover;
-  background:var(--highlight);
-  margin-bottom:12px;
-  box-shadow:0 8px 28px rgba(0,0,0,.6);
-}
-.card-name{font-size:14px;font-weight:700;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.card-sub{font-size:12px;color:var(--t2);line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-.card-play{
-  position:absolute;right:16px;bottom:72px;
-  width:48px;height:48px;border-radius:50%;
-  background:var(--green);
-  display:flex;align-items:center;justify-content:center;
-  opacity:0;transform:translateY(10px);
-  transition:opacity .2s,transform .2s,background .15s,box-shadow .15s;
-  box-shadow:0 8px 24px rgba(0,0,0,.5);
-}
-.card-play:hover{background:var(--green-bright);box-shadow:0 12px 28px rgba(0,0,0,.6)}
-.card-play.active{opacity:1;transform:translateY(0)}
-.card-play svg{width:20px;height:20px;fill:var(--black);margin-left:2px}
-
-/* ─ Track list ─ */
-.track-list{display:flex;flex-direction:column}
-
-/* header row */
-.tlist-header{
-  display:grid;
-  grid-template-columns:40px 48px 1fr 90px 50px 40px;
-  align-items:center;gap:12px;
-  padding:6px 16px;
-  border-bottom:1px solid var(--border);
-  margin-bottom:8px;
-  color:var(--t3);font-size:12px;font-weight:600;letter-spacing:.5px;
-  text-transform:uppercase;
-}
-
-.track-row{
-  display:grid;
-  grid-template-columns:40px 48px 1fr 90px 50px 40px;
-  align-items:center;gap:12px;
-  padding:8px 16px;
-  border-radius:6px;cursor:pointer;
-  transition:background var(--transition);
-  group:true;
-}
-.track-row:hover{background:var(--highlight)}
-.track-row:hover .tr-num{display:none}
-.track-row:hover .tr-play-icon{display:flex}
-.track-row:hover .tr-like{opacity:1}
-.track-row:hover .tr-more{opacity:1}
-.track-row.playing{background:rgba(29,185,84,.08)}
-.track-row.playing .tr-title{color:var(--green)}
-
-.tr-num{font-size:15px;color:var(--t3);text-align:center;font-variant-numeric:tabular-nums;line-height:1}
-.tr-eq{display:none}
-.track-row.playing .tr-num{display:none}
-.track-row.playing .tr-eq{display:flex}
-.tr-play-icon{display:none;align-items:center;justify-content:center;color:var(--white)}
-.tr-play-icon svg{width:16px;height:16px;fill:currentColor}
-
-.tr-thumb{width:40px;height:40px;border-radius:4px;object-fit:cover;background:var(--highlight);flex-shrink:0}
-.tr-info{min-width:0}
-.tr-title{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px;color:var(--t1)}
-.tr-artist{font-size:12px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tr-album{font-size:13px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tr-dur{font-size:13px;color:var(--t2);text-align:right;font-variant-numeric:tabular-nums}
-.tr-like{
-  opacity:0;transition:opacity var(--transition);
-  color:var(--t2);display:flex;align-items:center;justify-content:center;
-}
-.tr-like.liked{opacity:1;color:var(--green)}
-.tr-like svg{width:16px;height:16px;fill:currentColor}
-.tr-like:hover{color:var(--white)}
-.tr-more{
-  opacity:0;transition:opacity var(--transition);
-  color:var(--t2);display:flex;align-items:center;justify-content:center;
-}
-.tr-more:hover{color:var(--white)}
-.tr-more svg{width:16px;height:16px;fill:currentColor}
-
-/* EQ bars */
-.eq{display:flex;align-items:flex-end;gap:1.5px;height:14px;width:14px}
-.eq span{flex:1;background:var(--green);border-radius:1px;animation:eq .7s ease-in-out infinite alternate}
-.eq span:nth-child(2){animation-delay:.15s}
-.eq span:nth-child(3){animation-delay:.3s}
-@keyframes eq{from{height:3px}to{height:14px}}
-
-/* Skeleton */
+/* ── Skeleton loading ───────────────────────────────────── */
 .sk{
-  background:linear-gradient(90deg,var(--card) 25%,var(--highlight) 50%,var(--card) 75%);
-  background-size:200% 100%;
-  animation:sk 1.5s infinite;border-radius:4px;
+  background:linear-gradient(90deg,#e4e6ed 25%,#eff1f6 50%,#e4e6ed 75%);
+  background-size:200% 100%;animation:sk 1.5s infinite;border-radius:4px;
 }
 @keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}
 
-/* Fade up */
-@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-.fu{animation:fadeUp .3s ease forwards}
+/* ── Fade up animation ──────────────────────────────────── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.fu{animation:fadeUp .28s ease forwards}
 
-/* Empty */
-.empty{
-  display:flex;flex-direction:column;align-items:center;
-  justify-content:center;height:50vh;gap:14px;text-align:center;
-}
-.empty svg{width:52px;height:52px;fill:var(--t3);opacity:.6}
-.empty h3{font-size:22px;font-weight:700;color:var(--white)}
-.empty p{font-size:14px;color:var(--t2)}
+/* ── EQ bars ────────────────────────────────────────────── */
+.eq{display:flex;align-items:flex-end;gap:1.5px;height:14px}
+.eq span{width:2px;background:var(--green);border-radius:1px;animation:eq .8s ease infinite alternate}
+.eq span:nth-child(1){height:4px;animation-delay:0s}
+.eq span:nth-child(2){height:10px;animation-delay:.15s}
+.eq span:nth-child(3){height:6px;animation-delay:.3s}
+@keyframes eq{from{transform:scaleY(1)}to{transform:scaleY(2.5)}}
 
-/* ════════════════════════════════════════════════════════
-   PLAYER BAR  (bottom)
-════════════════════════════════════════════════════════ */
-.player{
-  grid-row:2;grid-column:1/-1;
-  background:var(--elevated);
-  border-top:1px solid var(--border);
-  display:flex;align-items:center;
-  padding:0 16px;
-  height:var(--player-h);
-  z-index:100;
-  /* Glassmorphism touch */
-  backdrop-filter:blur(20px);
-  -webkit-backdrop-filter:blur(20px);
+/* ── Nav tabs ───────────────────────────────────────────── */
+.nav-item{
+  display:flex;align-items:center;gap:6px;
+  padding:7px 14px;border-radius:12px;
+  font-size:13px;font-weight:600;color:var(--t2);
+  cursor:pointer;transition:all var(--transition);
+  white-space:nowrap;
 }
+.nav-item:hover{background:rgba(255,255,255,0.7);color:var(--t1)}
+.nav-item.active{background:#111218;color:#fff;box-shadow:0 4px 14px rgba(17,18,24,0.2)}
+.nav-item svg{width:15px;height:15px;fill:currentColor;flex-shrink:0}
 
-/* ─ Left third ─ */
-.pl-left{
-  display:flex;align-items:center;gap:14px;
-  width:30%;min-width:180px;
+/* ── Track rows ─────────────────────────────────────────── */
+.tlist-header{
+  display:grid;
+  grid-template-columns:32px 36px minmax(0,1fr) minmax(0,1fr) 60px 36px 36px;
+  gap:10px;padding:6px 12px;
+  font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--t3);border-bottom:1px solid var(--border);margin-bottom:2px;
 }
-.pl-thumb{
-  width:56px;height:56px;border-radius:4px;
-  object-fit:cover;background:var(--highlight);flex-shrink:0;
-  transition:transform var(--transition);cursor:pointer;
-}
-.pl-thumb:hover{transform:scale(1.04)}
-.pl-meta{min-width:0;flex:1}
-.pl-title{
-  font-size:14px;font-weight:600;color:var(--white);
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  margin-bottom:3px;cursor:pointer;
-}
-.pl-title:hover{text-decoration:underline}
-.pl-title.idle{color:var(--t3)}
-.pl-artist{font-size:12px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pl-artist span{cursor:pointer}
-.pl-artist span:hover{color:var(--white);text-decoration:underline}
-.pl-heart{
-  color:var(--t3);padding:6px;border-radius:50%;
-  transition:color var(--transition),transform var(--transition);
-}
-.pl-heart:hover{color:var(--white);transform:scale(1.1)}
-.pl-heart.liked{color:var(--green)}
-.pl-heart svg{width:16px;height:16px;fill:currentColor;display:block}
-
-/* ─ Center third ─ */
-.pl-center{
-  flex:1;display:flex;flex-direction:column;
+.track-row{
+  display:grid;
+  grid-template-columns:32px 36px minmax(0,1fr) minmax(0,1fr) 60px 36px 36px;
   align-items:center;gap:10px;
-  padding:0 16px;max-width:722px;
-  margin:0 auto;
+  padding:8px 12px;border-radius:10px;cursor:pointer;
+  transition:background var(--transition);position:relative;
 }
-
-.pl-controls{display:flex;align-items:center;gap:8px}
-.ctrl{
-  color:var(--t2);padding:6px;border-radius:50%;
-  transition:color var(--transition),transform var(--transition),background var(--transition);
+.track-row:hover{background:rgba(0,0,0,0.04)}
+.track-row.playing{background:rgba(29,185,84,0.08)}
+.track-row.playing .tr-title{color:var(--green);font-weight:700}
+.tr-num{font-size:13px;font-weight:500;color:var(--t3);text-align:center}
+.tr-eq{display:none;justify-content:center}
+.tr-play-icon{display:none;justify-content:center}
+.track-row:hover .tr-num{display:none}
+.track-row:hover .tr-play-icon{display:flex}
+.track-row.playing .tr-num,.track-row.playing .tr-play-icon{display:none}
+.track-row.playing .tr-eq{display:flex}
+.tr-thumb{width:36px;height:36px;border-radius:6px;object-fit:cover;background:#e8eaf0}
+.tr-info{min-width:0}
+.tr-title{font-size:13px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
+.tr-artist{font-size:11px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tr-album{font-size:12px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tr-dur{font-size:11px;color:var(--t3);text-align:right;font-variant-numeric:tabular-nums}
+.tr-like,.tr-more,.tr-remove{
   display:flex;align-items:center;justify-content:center;
+  width:28px;height:28px;border-radius:50%;
+  color:var(--t3);transition:all var(--transition);
 }
-.ctrl:hover{color:var(--white);transform:scale(1.08)}
-.ctrl.on{color:var(--green)}
-.ctrl.on::after{
-  content:'';position:absolute;bottom:-5px;left:50%;
-  transform:translateX(-50%);
-  width:4px;height:4px;border-radius:50%;background:var(--green);
+.tr-like:hover,.tr-more:hover,.tr-remove:hover{color:var(--t1);background:rgba(0,0,0,0.06)}
+.tr-like.liked{color:var(--green)}
+.tr-like svg,.tr-more svg,.tr-remove svg{width:14px;height:14px;fill:currentColor;display:block}
+
+/* ── Playlist view ──────────────────────────────────────── */
+.pv-header{display:flex;align-items:flex-end;gap:20px;padding:8px 0 20px;border-bottom:1px solid var(--border);margin-bottom:8px}
+.pv-art{
+  width:100px;height:100px;border-radius:16px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--green) 0%,#0a8f3a 100%);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 8px 24px rgba(29,185,84,0.25);
 }
-.ctrl{position:relative}
-.ctrl svg{width:16px;height:16px;fill:currentColor;display:block}
-.ctrl-lg svg{width:20px;height:20px}
-
-.ctrl-play{
-  width:34px;height:34px;border-radius:50%;
-  background:var(--white);color:var(--black);padding:0;
-  transition:transform var(--transition),background var(--transition);
+.pv-art svg{width:42px;height:42px;fill:rgba(255,255,255,0.85)}
+.pv-art img{width:100%;height:100%;object-fit:cover;border-radius:16px}
+.pv-meta{flex:1;min-width:0}
+.pv-type{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--t3);margin-bottom:6px}
+.pv-name{font-size:22px;font-weight:800;color:var(--t1);line-height:1.2;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pv-desc{font-size:12px;color:var(--t2)}
+.pv-actions{display:flex;align-items:center;gap:10px;padding:12px 0 8px}
+.pv-play-all{
+  display:flex;align-items:center;gap:6px;padding:10px 20px;
+  background:#111218;color:#fff;border-radius:100px;
+  font-size:13px;font-weight:700;transition:all var(--transition);
+  box-shadow:0 6px 18px rgba(17,18,24,0.2);
 }
-.ctrl-play:hover{background:#e8e8e8;transform:scale(1.06) !important}
-.ctrl-play svg{width:18px;height:18px;fill:var(--black);display:block;margin:0 auto}
+.pv-play-all:hover{transform:scale(1.03);background:#1a1b24}
+.pv-play-all svg{width:16px;height:16px;fill:#fff}
+.pv-del{
+  display:flex;align-items:center;gap:6px;padding:10px 18px;
+  border:1px solid var(--border);border-radius:100px;
+  font-size:13px;font-weight:600;color:var(--t2);
+  transition:all var(--transition);
+}
+.pv-del:hover{color:#ef4444;border-color:#ef4444;background:rgba(239,68,68,0.05)}
+.pv-del svg{width:14px;height:14px;fill:currentColor}
 
-.progress-row{display:flex;align-items:center;gap:10px;width:100%}
-.time{font-size:11px;color:var(--t3);font-variant-numeric:tabular-nums;min-width:38px}
-.time.r{text-align:right}
+/* ── Quick tiles / Trending ─────────────────────────────── */
+.quick-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:20px}
+.quick-tile{
+  background:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.9);
+  border-radius:12px;padding:12px 14px;cursor:pointer;
+  display:flex;align-items:center;gap:10px;
+  font-size:13px;font-weight:600;color:var(--t1);
+  transition:all var(--transition);
+  box-shadow:0 2px 8px rgba(0,0,0,0.04);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.quick-tile:hover{background:#fff;transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,0,0,0.08)}
+.quick-tile-icon{width:32px;height:32px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px}
 
+.section-label{
+  font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--t3);margin-bottom:10px;display:flex;align-items:center;gap:8px;
+}
+.trend-grid{display:flex;flex-direction:column;gap:2px}
+.trend-row{
+  display:flex;align-items:center;gap:12px;
+  padding:9px 12px;border-radius:10px;cursor:pointer;
+  transition:background var(--transition);
+}
+.trend-row:hover{background:rgba(0,0,0,0.04)}
+.trend-rank{font-size:13px;font-weight:700;color:var(--t3);min-width:20px;text-align:center}
+.trend-thumb{width:38px;height:38px;border-radius:7px;object-fit:cover;background:#e8eaf0;flex-shrink:0}
+.trend-info{flex:1;min-width:0}
+.trend-title{font-size:13px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
+.trend-artist{font-size:11px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trend-dur{font-size:11px;color:var(--t3);font-variant-numeric:tabular-nums}
+
+/* ── Search results header ──────────────────────────────── */
+.results-title{font-size:18px;font-weight:800;color:var(--t1);margin-bottom:14px}
+
+/* ── Progress bar ───────────────────────────────────────── */
 .pbar{
-  flex:1;height:4px;border-radius:2px;
-  background:var(--highlight);cursor:pointer;position:relative;
-  transition:height .1s;
+  flex:1;height:3px;border-radius:2px;
+  background:rgba(0,0,0,0.1);cursor:pointer;position:relative;
+  transition:height .12s;
 }
-.pbar:hover{height:6px}
+.pbar:hover{height:5px}
 .pbar:hover .pbar-knob{opacity:1}
 .pbar:hover .pbar-fill{background:var(--green)}
-.pbar-buf{position:absolute;left:0;top:0;height:100%;background:#ffffff1a;border-radius:2px;width:0%;pointer-events:none}
-.pbar-fill{position:absolute;left:0;top:0;height:100%;background:var(--t2);border-radius:2px;width:0%;pointer-events:none;transition:background .1s}
+.pbar-buf{position:absolute;left:0;top:0;height:100%;background:rgba(0,0,0,0.15);border-radius:2px;width:0%;pointer-events:none}
+.pbar-fill{position:absolute;left:0;top:0;height:100%;background:var(--t1);border-radius:2px;width:0%;pointer-events:none;transition:background .1s}
 .pbar-knob{
   position:absolute;top:50%;transform:translate(-50%,-50%);
-  width:13px;height:13px;background:var(--white);border-radius:50%;
+  width:12px;height:12px;background:var(--t1);border-radius:50%;
   pointer-events:none;opacity:0;transition:opacity .1s;left:0%;
 }
 
-/* ─ Right third ─ */
-.pl-right{
-  display:flex;align-items:center;justify-content:flex-end;
-  gap:4px;width:30%;min-width:160px;
+/* ── Player bar buttons ─────────────────────────────────── */
+.ctrl{
+  color:var(--t2);padding:6px;border-radius:50%;
+  transition:color var(--transition),transform var(--transition),background var(--transition);
+  display:flex;align-items:center;justify-content:center;position:relative;
 }
-.buf-status{
-  display:flex;align-items:center;gap:5px;
-  font-size:10px;color:var(--t3);margin-right:8px;
+.ctrl:hover{color:var(--t1);transform:scale(1.1)}
+.ctrl.on{color:var(--green)}
+.ctrl.on::after{
+  content:'';position:absolute;bottom:-4px;left:50%;
+  transform:translateX(-50%);width:3px;height:3px;border-radius:50%;background:var(--green);
 }
+.ctrl svg{width:16px;height:16px;fill:currentColor;display:block}
+.ctrl-lg svg{width:20px;height:20px}
+.ctrl-play{
+  width:36px;height:36px;border-radius:50%;
+  background:#111218;color:#fff;padding:0;
+  transition:transform var(--transition),background var(--transition);
+  box-shadow:0 4px 14px rgba(17,18,24,0.25);
+}
+.ctrl-play:hover{background:#1a1b24;transform:scale(1.06)!important}
+.ctrl-play svg{width:18px;height:18px;fill:#fff;display:block;margin:0 auto}
+
+/* ── Volume bar ─────────────────────────────────────────── */
+.vol-wrap{display:flex;align-items:center;gap:5px;width:100px}
+
+/* ── Buffer status ──────────────────────────────────────── */
 .buf-dot{width:5px;height:5px;border-radius:50%;background:var(--t3);flex-shrink:0}
 .buf-dot.buffering{background:#4fc3f7;animation:blink .6s infinite alternate}
 .buf-dot.ready{background:var(--green)}
 @keyframes blink{from{opacity:1}to{opacity:.2}}
 
-.vol-wrap{display:flex;align-items:center;gap:6px;width:120px}
-.vol-icon{color:var(--t2);padding:6px;transition:color var(--transition)}
-.vol-icon:hover{color:var(--white)}
-.vol-icon svg{width:15px;height:15px;fill:currentColor;display:block}
-
-/* ════════════════════════════════════════════════════════
-   TOOLTIP
-════════════════════════════════════════════════════════ */
+/* ── Tooltip ────────────────────────────────────────────── */
 [data-tip]{position:relative}
 [data-tip]:hover::before{
   content:attr(data-tip);
   position:absolute;bottom:calc(100% + 8px);left:50%;
   transform:translateX(-50%);
-  background:var(--highlight);color:var(--white);
+  background:#111218;color:#fff;
   font-size:11px;font-weight:600;white-space:nowrap;
-  padding:5px 10px;border-radius:4px;pointer-events:none;
-  z-index:999;
+  padding:5px 10px;border-radius:6px;pointer-events:none;z-index:999;
 }
 
-/* ════════════════════════════════════════════════════════
-   PLAYLIST SIDEBAR ITEMS
-════════════════════════════════════════════════════════ */
-.pl-list{overflow-y:auto;flex:1;padding:4px 0}
+/* ── Playlist sidebar list ──────────────────────────────── */
 .pl-item{
   display:flex;align-items:center;gap:10px;
-  padding:8px 12px;border-radius:6px;cursor:pointer;
+  padding:8px 12px;border-radius:10px;cursor:pointer;
   transition:background var(--transition);
 }
-.pl-item:hover{background:var(--highlight)}
-.pl-item.active{background:var(--highlight)}
-.pl-item-art{
-  width:40px;height:40px;border-radius:4px;flex-shrink:0;
-  object-fit:cover;background:var(--highlight);
-}
-.pl-item-art.liked-art{
-  background:linear-gradient(135deg,#450af5,#c4efd9);
-  display:flex;align-items:center;justify-content:center;
-}
-.pl-item-art.liked-art svg{width:20px;height:20px;fill:#fff}
-.pl-item-art.custom-art{
-  background:linear-gradient(135deg,#1a2a4a,#2a4a3a);
-  display:flex;align-items:center;justify-content:center;
-}
-.pl-item-art.custom-art svg{width:18px;height:18px;fill:var(--t2)}
-.pl-item-info{min-width:0;flex:1}
-.pl-item-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pl-item-meta{font-size:11px;color:var(--t2)}
+.pl-item:hover{background:rgba(0,0,0,0.04)}
+.pl-item.active{background:rgba(29,185,84,0.08)}
+.pl-item.active .pl-name{color:var(--green);font-weight:700}
+.pl-icon{width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,var(--green),#0a8f3a);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.pl-icon svg{width:16px;height:16px;fill:rgba(255,255,255,0.9)}
+.pl-name{font-size:13px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl-count{font-size:11px;color:var(--t2)}
 
-/* ════════════════════════════════════════════════════════
-   CREATE PLAYLIST MODAL
-════════════════════════════════════════════════════════ */
-.modal-overlay{
-  position:fixed;inset:0;background:rgba(0,0,0,.7);
-  display:flex;align-items:center;justify-content:center;
-  z-index:9999;opacity:0;pointer-events:none;
-  transition:opacity .2s;
-}
-.modal-overlay.open{opacity:1;pointer-events:all}
-.modal{
-  background:#282828;border-radius:12px;padding:28px;
-  width:360px;max-width:90vw;
-  transform:scale(.95);transition:transform .2s;
-}
-.modal-overlay.open .modal{transform:scale(1)}
-.modal h3{font-size:22px;font-weight:700;margin-bottom:20px}
-.modal-input{
-  width:100%;background:#3e3e3e;border:none;border-radius:4px;
-  color:var(--white);font-family:var(--font);font-size:15px;
-  padding:12px 14px;outline:none;
-  transition:box-shadow .15s;
-}
-.modal-input:focus{box-shadow:0 0 0 2px var(--green)}
-.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
-.modal-cancel{padding:10px 18px;border-radius:500px;font-size:14px;font-weight:700;color:var(--white);background:transparent;transition:background .15s}
-.modal-cancel:hover{background:#3e3e3e}
-.modal-create{padding:10px 20px;border-radius:500px;font-size:14px;font-weight:700;background:var(--white);color:var(--black);transition:transform .15s,background .15s}
-.modal-create:hover{transform:scale(1.03);background:#e8e8e8}
-
-/* ════════════════════════════════════════════════════════
-   CONTEXT MENU
-════════════════════════════════════════════════════════ */
+/* ── Context menu ───────────────────────────────────────── */
 .ctx-menu{
-  position:fixed;z-index:9000;
-  background:#282828;border-radius:6px;
-  padding:4px;min-width:180px;
-  box-shadow:0 8px 32px rgba(0,0,0,.6);
-  opacity:0;pointer-events:none;transform:scale(.95);
-  transition:opacity .12s,transform .12s;
+  position:fixed;z-index:1000;min-width:180px;
+  background:#fff;border:1px solid var(--border);
+  border-radius:14px;padding:6px;
+  box-shadow:0 10px 40px rgba(0,0,0,0.14);
+  display:none;
 }
-.ctx-menu.open{opacity:1;pointer-events:all;transform:scale(1)}
+.ctx-menu.open{display:block}
 .ctx-item{
   display:flex;align-items:center;gap:10px;
-  padding:10px 12px;border-radius:4px;cursor:pointer;
-  font-size:13px;font-weight:500;
-  transition:background .1s;position:relative;
+  padding:9px 12px;border-radius:8px;cursor:pointer;
+  font-size:13px;font-weight:500;color:var(--t1);
+  transition:background var(--transition);position:relative;
 }
-.ctx-item:hover{background:var(--highlight)}
-.ctx-item svg{width:16px;height:16px;fill:currentColor;flex-shrink:0;color:var(--t2)}
-.ctx-item.has-sub::after{content:'›';position:absolute;right:10px;font-size:16px;color:var(--t2)}
+.ctx-item:hover{background:rgba(0,0,0,0.04)}
+.ctx-item svg{width:15px;height:15px;fill:currentColor;flex-shrink:0;color:var(--t2)}
+.ctx-sep{height:1px;background:var(--border);margin:4px 0}
 .ctx-sub{
   position:absolute;left:calc(100% + 4px);top:0;
-  background:#282828;border-radius:6px;padding:4px;
-  min-width:160px;box-shadow:0 8px 32px rgba(0,0,0,.6);
-  display:none;z-index:9001;
+  min-width:170px;background:#fff;border:1px solid var(--border);
+  border-radius:12px;padding:6px;
+  box-shadow:0 8px 30px rgba(0,0,0,0.12);display:none;
 }
-.ctx-item:hover .ctx-sub{display:block}
-.ctx-sep{height:1px;background:var(--border);margin:4px 0}
+.ctx-item.has-sub:hover .ctx-sub{display:block}
 
-/* ════════════════════════════════════════════════════════
-   PLAYLIST VIEW
-════════════════════════════════════════════════════════ */
-.pv-header{
-  display:flex;align-items:flex-end;gap:24px;
-  padding:48px 24px 24px;position:relative;z-index:5;
+/* ── Modal ──────────────────────────────────────────────── */
+.modal-overlay{
+  position:fixed;inset:0;z-index:500;
+  background:rgba(0,0,0,0.25);backdrop-filter:blur(6px);
+  display:none;align-items:center;justify-content:center;
 }
-.pv-art{
-  width:192px;height:192px;border-radius:8px;flex-shrink:0;
-  box-shadow:0 16px 48px rgba(0,0,0,.5);
-  display:flex;align-items:center;justify-content:center;
-  background:linear-gradient(135deg,#450af5,#c4efd9);
-  position:relative;overflow:hidden;
+.modal-overlay.open{display:flex}
+.modal{
+  background:#fff;border-radius:20px;padding:28px;
+  width:340px;box-shadow:0 24px 70px rgba(0,0,0,0.18);
 }
-.pv-art.custom{background:linear-gradient(135deg,#1a2a4a,#2a4a3a)}
-.pv-art svg{width:80px;height:80px;fill:#fff;opacity:.85}
-.pv-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.pv-meta{min-width:0}
-.pv-type{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--white);margin-bottom:8px}
-.pv-name{font-size:clamp(28px,5vw,56px);font-weight:800;line-height:1.1;color:var(--white);margin-bottom:12px;word-break:break-word}
-.pv-desc{font-size:13px;color:var(--t2);margin-bottom:2px}
-.pv-actions{
-  display:flex;align-items:center;gap:16px;
-  padding:24px 24px 8px;position:relative;z-index:5;
+.modal h3{font-size:17px;font-weight:800;color:var(--t1);margin-bottom:16px}
+.modal-input{
+  width:100%;padding:11px 14px;border-radius:10px;
+  background:#f3f4f8;border:1px solid var(--border);
+  font-size:14px;color:var(--t1);font-family:var(--font);
+  outline:none;transition:border-color var(--transition);
 }
-.pv-play-all{
-  width:56px;height:56px;border-radius:50%;
-  background:var(--green);display:flex;align-items:center;justify-content:center;
-  transition:transform .15s,background .15s;box-shadow:0 8px 24px rgba(0,0,0,.4);
+.modal-input:focus{border-color:#111218}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+.modal-cancel{
+  padding:9px 18px;border-radius:10px;font-size:13px;font-weight:600;
+  color:var(--t2);transition:all var(--transition);
 }
-.pv-play-all:hover{transform:scale(1.06);background:var(--green-bright)}
-.pv-play-all svg{width:24px;height:24px;fill:var(--black);margin-left:2px}
-.pv-del{color:var(--t2);padding:6px;transition:color .15s}
-.pv-del:hover{color:#ff6b6b}
-.pv-del svg{width:20px;height:20px;fill:currentColor;display:block}
-.tr-remove{color:var(--t3);opacity:0;transition:opacity .15s,color .15s;display:flex;align-items:center;justify-content:center}
-.track-row:hover .tr-remove{opacity:1}
-.tr-remove:hover{color:#ff6b6b}
-.tr-remove svg{width:16px;height:16px;fill:currentColor}
+.modal-cancel:hover{background:rgba(0,0,0,0.05);color:var(--t1)}
+.modal-create{
+  padding:9px 18px;border-radius:10px;font-size:13px;font-weight:700;
+  background:#111218;color:#fff;transition:all var(--transition);
+  box-shadow:0 4px 12px rgba(17,18,24,0.2);
+}
+.modal-create:hover{background:#1a1b24}
 
-/* ════════════════════════════════════════════════════════
-   TRENDING SECTION
-════════════════════════════════════════════════════════ */
-.trend-grid{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:10px;
-  margin-bottom:40px;
+/* ── Queue Panel ────────────────────────────────────────── */
+.queue-panel{
+  position:fixed;right:0;top:0;bottom:0;width:320px;
+  background:#fff;border-left:1px solid var(--border);
+  display:flex;flex-direction:column;z-index:300;
+  transform:translateX(100%);
+  transition:transform .3s cubic-bezier(.4,0,.2,1);
+  box-shadow:-10px 0 40px rgba(0,0,0,0.06);
 }
-@media(max-width:800px){.trend-grid{grid-template-columns:1fr}}
-.trend-row{
-  display:flex;align-items:center;gap:12px;
-  padding:10px 12px;border-radius:8px;
-  cursor:pointer;position:relative;
-  background:var(--card);
-  transition:background var(--transition),transform .15s;
-  overflow:hidden;
+.queue-panel.open{transform:translateX(0)}
+.queue-panel-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:20px 16px 12px;border-bottom:1px solid var(--border);flex-shrink:0;
 }
-.trend-row::before{
-  content:'';position:absolute;inset:0;
-  background:linear-gradient(90deg,transparent 60%,rgba(29,185,84,.06));
-  opacity:0;transition:opacity .2s;
+.queue-panel-header h3{font-size:15px;font-weight:800;color:var(--t1)}
+.queue-now{padding:12px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.queue-now-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--t3);margin-bottom:8px}
+.queue-now-track{display:flex;align-items:center;gap:10px}
+.queue-now-track img{width:38px;height:38px;border-radius:7px;object-fit:cover;border:2px solid var(--green)}
+.queue-now-info{min-width:0;flex:1}
+.queue-now-title{font-size:13px;font-weight:700;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:1px}
+.queue-now-artist{font-size:11px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.queue-next-label{
+  font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--t3);
+  padding:12px 16px 6px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:space-between;
 }
-.trend-row:hover{background:var(--highlight);transform:translateY(-1px)}
-.trend-row:hover::before{opacity:1}
-.trend-row:hover .trend-play{opacity:1;transform:scale(1)}
-.trend-rank{
-  font-size:22px;font-weight:800;color:var(--t3);
-  min-width:32px;text-align:center;
-  font-variant-numeric:tabular-nums;line-height:1;
+.queue-next-label span:last-child{font-size:10px;color:var(--green);font-weight:600;text-transform:none;letter-spacing:0}
+.queue-list{overflow-y:auto;flex:1;padding:4px 0}
+.queue-item{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 14px;cursor:pointer;transition:background .12s;
 }
-.trend-rank.top3{color:var(--green)}
-.trend-thumb-wrap{position:relative;flex-shrink:0}
-.trend-thumb{
-  width:52px;height:52px;border-radius:6px;
-  object-fit:cover;background:var(--highlight);
-  display:block;
+.queue-item:hover{background:rgba(0,0,0,0.04)}
+.queue-item-num{font-size:12px;color:var(--t3);min-width:18px;text-align:center}
+.queue-item img{width:34px;height:34px;border-radius:6px;object-fit:cover;background:#e8eaf0;flex-shrink:0}
+.queue-item-info{min-width:0;flex:1}
+.queue-item-title{font-size:12px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:1px}
+.queue-item-artist{font-size:11px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.queue-item-dur{font-size:11px;color:var(--t3);flex-shrink:0}
+.queue-loading{display:flex;align-items:center;gap:8px;padding:12px 16px;font-size:12px;color:var(--t2)}
+.queue-loading-dot{width:5px;height:5px;border-radius:50%;background:var(--green);animation:q-pulse .8s infinite alternate}
+.queue-loading-dot:nth-child(2){animation-delay:.2s}
+.queue-loading-dot:nth-child(3){animation-delay:.4s}
+@keyframes q-pulse{from{opacity:.3;transform:scale(.8)}to{opacity:1;transform:scale(1.2)}}
+.queue-close{color:var(--t2);padding:6px;border-radius:50%;transition:color .15s,background .15s;display:flex;align-items:center;justify-content:center}
+.queue-close:hover{color:var(--t1);background:rgba(0,0,0,0.06)}
+.queue-close svg{width:18px;height:18px;fill:currentColor}
+.ctrl.queue-active{color:var(--green)}
+.autoplay-badge{
+  display:flex;align-items:center;gap:4px;font-size:10px;font-weight:600;color:var(--t3);
+  padding:4px 10px;border-radius:500px;border:1px solid var(--border);transition:all .2s;cursor:pointer;
 }
-.trend-play{
-  position:absolute;inset:0;
-  background:rgba(0,0,0,.55);
-  border-radius:6px;
-  display:flex;align-items:center;justify-content:center;
-  opacity:0;transform:scale(.9);
-  transition:opacity .15s,transform .15s;
-}
-.trend-play svg{width:20px;height:20px;fill:#fff}
-.trend-info{min-width:0;flex:1}
-.trend-title{
-  font-size:13px;font-weight:600;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  color:var(--t1);margin-bottom:3px;
-}
-.trend-artist{font-size:11px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.trend-dur{font-size:11px;color:var(--t3);flex-shrink:0;margin-left:auto;padding-left:8px}
-.fire-badge{
-  display:inline-flex;align-items:center;gap:5px;
-  background:linear-gradient(90deg,#ff6b35,#f7c59f22);
-  border-radius:500px;padding:3px 10px 3px 6px;
-  font-size:11px;font-weight:700;color:#ff6b35;
-  margin-bottom:12px;
-}
-.trend-sk{
-  background:linear-gradient(90deg,var(--card) 25%,var(--highlight) 50%,var(--card) 75%);
-  background-size:200% 100%;animation:sk 1.5s infinite;
-  border-radius:6px;
-}
+.autoplay-badge.on{color:var(--green);border-color:var(--green);background:rgba(29,185,84,0.06)}
+.autoplay-badge svg{width:11px;height:11px;fill:currentColor}
 
-/* ════════════════════════════════════════════════════════
-   AI DJ SECTION
-════════════════════════════════════════════════════════ */
-.dj-container {
-  max-width:800px; margin:0 auto; padding-top:40px; position:relative; z-index:2;
-}
-.dj-hero {
-  text-align:center; padding:60px 40px; border-radius:24px; position:relative; overflow:hidden;
-  background:rgba(30,30,30,0.6); backdrop-filter:blur(24px); border:1px solid rgba(255,255,255,0.05);
-  box-shadow:0 24px 64px rgba(0,0,0,0.4); margin-bottom:40px;
-}
-.dj-orb {
-  position:absolute; width:400px; height:400px; background:#bf55ec; border-radius:50%; filter:blur(100px);
-  opacity:0.15; top:-100px; left:-100px; animation:dj-float 10s infinite alternate ease-in-out; pointer-events:none;
-}
-.dj-orb-2 { background:#4fc3f7; top:auto; bottom:-100px; left:auto; right:-100px; animation-delay:-5s; }
-@keyframes dj-float { to { transform:translate(50px,50px) scale(1.1); } }
-.dj-hero h1 { font-size:clamp(32px, 5vw, 56px); font-weight:800; margin-bottom:12px;
-  background:linear-gradient(90deg, #bf55ec, #4fc3f7); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
-.dj-hero p { font-size:16px; color:var(--t2); max-width:500px; margin:0 auto 32px; line-height:1.5; }
-.dj-input-wrap { display:flex; max-width:600px; margin:0 auto; gap:12px; position:relative; }
-.dj-input { flex:1; background:rgba(0,0,0,0.4); border:2px solid rgba(255,255,255,0.1); border-radius:500px;
-  padding:0 24px; color:var(--white); font-family:var(--font); font-size:16px; outline:none; transition:border .2s,box-shadow .2s; }
-.dj-input:focus { border-color:#4fc3f7; box-shadow:0 0 20px rgba(79,195,247,0.2); }
-.dj-btn { flex-shrink:0; background:linear-gradient(90deg, #bf55ec, #4fc3f7); padding:16px 32px; border-radius:500px;
-  color:var(--white); font-weight:800; font-size:15px; border:none; cursor:pointer; display:flex; align-items:center; gap:8px;
-  transition:transform .15s,box-shadow .15s; }
-.dj-btn:hover { transform:scale(1.03); box-shadow:0 8px 24px rgba(191,85,236,0.4); }
-.dj-status { margin-top:24px; font-size:14px; font-weight:600; color:var(--t2); min-height:20px; transition:color .2s; }
-.dj-status.loading { color:#4fc3f7; animation:pulse 1.5s infinite; }
-@keyframes pulse { 0% {opacity:.5} 50% {opacity:1} 100% {opacity:.5} }
+/* ── Empty state ────────────────────────────────────────── */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:200px;gap:12px;text-align:center}
+.empty svg{width:44px;height:44px;fill:var(--t3);opacity:.5}
+.empty h3{font-size:18px;font-weight:800;color:var(--t1)}
+.empty p{font-size:13px;color:var(--t2)}
 
-/* ════════════════════════════════════════════════════════
-   RESPONSIVE
-════════════════════════════════════════════════════════ */
-@media(max-width:1100px){
-  :root{--sidebar-w:200px}
-  .quick-grid{grid-template-columns:repeat(2,1fr)}
+/* ── Mobile nav ─────────────────────────────────────────── */
+.mobile-nav{
+  display:none;position:fixed;bottom:0;left:0;right:0;z-index:200;
+  background:rgba(255,255,255,0.95);backdrop-filter:blur(20px);
+  border-top:1px solid var(--border);
+  flex-direction:row;align-items:stretch;height:58px;
 }
-@media(max-width:900px){
-  :root{--sidebar-w:72px}
-  .logo-text,.nav-item span,.lib-create,.lib-title span,.lib-header{display:none}
-  .logo{justify-content:center;padding:0}
-  .nav-item{justify-content:center;padding:12px}
-  .pl-right .buf-status{display:none}
+.mobile-nav-item{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  cursor:pointer;font-size:10px;font-weight:600;color:var(--t2);transition:color var(--transition);
 }
+.mobile-nav-item svg{width:20px;height:20px;fill:currentColor}
+.mobile-nav-item.active{color:var(--t1)}
+
+/* ── Range slider ───────────────────────────────────────── */
+input[type=range]{-webkit-appearance:none;appearance:none;background:transparent;cursor:pointer}
+input[type=range]::-webkit-slider-runnable-track{height:3px;background:rgba(0,0,0,0.1);border-radius:2px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:10px;height:10px;border-radius:50%;background:#111218;margin-top:-3.5px;transition:transform .15s}
+input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.3)}
+
+/* ── Heart in player ────────────────────────────────────── */
+.pl-heart{color:var(--t3);padding:6px;border-radius:50%;transition:color var(--transition),transform var(--transition)}
+.pl-heart:hover{color:var(--t1);transform:scale(1.1)}
+.pl-heart.liked{color:#ef4444}
+.pl-heart svg{width:16px;height:16px;fill:currentColor;display:block}
+
 @media(max-width:768px){
-  .shell{
-    grid-template-columns:1fr;
-    grid-template-rows:1fr auto;
-    padding:0;
-    gap:0;
-  }
-  .sidebar{display:none}
+  .mobile-nav{display:flex}
+  body{padding-bottom:58px}
+  .hide-mobile{display:none!important}
 }
-/* ════════════════════════════════════
-   MOBILE RESPONSIVE
-════════════════════════════════════ */
-.mobile-nav { display: none; }
-
-@media (max-width: 768px) {
-  /* Hide desktop sidebar */
-  .sidebar { display: none; }
-  
-  /* Reset main content margin */
-  .main-content {
-    margin-left: 0;
-    width: 100vw;
-  }
-
-  /* Compact Playbar positioned ABOVE the mobile nav */
-  .playbar {
-    padding: 10px;
-    height: auto;
-    min-height: 80px;
-    flex-wrap: wrap;
-    bottom: 60px; /* Leave space for bottom nav */
-  }
-  .pl-left { width: 100%; margin-bottom: 10px; }
-  .pl-mid { width: 100%; max-width: none; margin-bottom: 5px; }
-  .pl-right { display: none; }
-
-  /* Mobile Bottom Navigation */
-  .mobile-nav {
-    display: flex;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 60px;
-    background: rgba(0,0,0,0.9);
-    backdrop-filter: blur(10px);
-    border-top: 1px solid var(--border);
-    z-index: 9999;
-    justify-content: space-around;
-    align-items: center;
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-  .mobile-nav-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    color: #a7a7a7;
-    font-size: 10px;
-    font-weight: 500;
-    gap: 4px;
-    cursor: pointer;
-  }
-  .mobile-nav-item svg {
-    width: 24px;
-    height: 24px;
-    fill: currentColor;
-  }
-  .mobile-nav-item.active {
-    color: #fff;
-  }
-  .mobile-nav-item.ai-dj svg { stroke: url(#djGrad); fill: none; }
-  .mobile-nav-item.ai-dj span {
-    background: linear-gradient(90deg,#bf55ec,#4fc3f7);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-
-  /* Grid Adjustments */
-  .grid {
-    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-    gap: 16px;
-  }
-
-  /* Track List Constraints */
-  .track-row {
-    grid-template-columns: 35px 35px minmax(0, 1fr) 35px;
-    padding: 10px;
-  }
-  .tr-album, .tr-dur, .tr-date { display: none; }
-  .tlist-header { display: none; }
-
-  /* DJ UI Adjustments */
-  .dj-hero h1 { font-size: 2.2rem; }
-  .dj-hero p { font-size: 0.95rem; padding: 0 10px; }
-  .dj-input-wrap { flex-direction: column; padding: 0 10px; }
-  .dj-input { border-radius: 8px; margin-bottom: 10px; font-size:16px; }
-  .dj-btn { width: 100%; border-radius: 8px; }
-
-  /* Main content area: fill space, scroll, pad for player + bottom nav */
-  main.main-content {
-    overflow-y: auto;
-    padding-bottom: 160px !important;
-  }
-
-  /* Player bar: full width, above mobile nav */
-  .player {
-    position: fixed;
-    bottom: 60px;
-    left: 0;
-    width: 100%;
-    z-index: 1000;
-    border-radius: 0;
-    padding: 10px 12px;
-    height: auto;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-  .pl-left {
-    width: 100%;
-    min-width: 0;
-    gap: 8px;
-  }
-  .pl-left-info {
-    min-width: 0;
-  }
-  .pl-mid {
-    width: 100%;
-    max-width: none;
-    order: -1;
-  }
-  .pl-right { display: none; }
-
-  /* Track rows — hide non-essential columns */
-  .tlist-header, .tr-album, .tr-dur, .tr-date, .tr-more { display: none !important; }
-  .track-row {
-    grid-template-columns: 30px 38px minmax(0,1fr) 38px;
-    padding: 8px 10px;
-    gap: 8px;
-  }
-  .tr-like { display: flex; }
-
-  /* Grid cards smaller on mobile */
-  .grid {
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 12px;
-    padding: 12px;
-  }
-  .card-art { height: 120px; }
-}
+@media(max-width:1024px){.xl-only{display:none!important}}
 </style>
 </head>
 <body>
 
-<!-- SVG Gradients -->
-<svg style="width:0;height:0;position:absolute" aria-hidden="true">
-  <defs><linearGradient id="djGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#bf55ec"/><stop offset="100%" stop-color="#4fc3f7"/></linearGradient></defs>
-</svg>
+<!-- Ambient background -->
+<div id="artBg"></div>
 
-<div class="shell">
+<!-- ═══════════════════════════════════════════
+     HEADER
+═══════════════════════════════════════════ -->
+<header class="sticky top-0 z-50 w-full px-6 py-3" style="background:rgba(234,235,240,0.85);backdrop-filter:blur(20px);border-bottom:1px solid rgba(0,0,0,0.06)">
+  <div class="max-w-[1440px] mx-auto flex items-center gap-6">
 
-<!-- ══════════════════════════════════════
-     SIDEBAR
-══════════════════════════════════════ -->
-<aside class="sidebar">
-
-  <div class="sidebar-top">
-    <!-- Logo -->
-    <div class="logo">
-      <svg viewBox="0 0 24 24" fill="none">
-        <circle cx="12" cy="12" r="12" fill="#1db954"/>
-        <path d="M17.5 16.5c-.2 0-.4-.1-.6-.2-1.7-1-3.8-1.6-6-1.6-1.2 0-2.5.2-3.7.4-.2 0-.4.1-.6.1-.5 0-.9-.4-.9-.9s.3-.8.8-1c1.5-.4 3-.5 4.4-.5 2.6 0 5 .6 7 1.8.3.2.5.4.5.9 0 .6-.4 1-.9 1zm1.3-3.6c-.3 0-.5-.1-.7-.2-2-1.2-4.7-1.8-7.5-1.8-1.5 0-2.8.2-3.8.5-.2.1-.4.1-.6.1-.6 0-1.1-.5-1.1-1.1 0-.6.3-1 .9-1.2 1.3-.4 2.7-.6 4.7-.6 3.2 0 6.3.8 8.7 2.3.4.3.7.6.7 1.1 0 .7-.5 1.1-1.1 1zm1.5-4.1c-.3 0-.5-.1-.7-.2C17 7.2 14 6.5 10.7 6.5c-1.7 0-3.3.2-4.7.6-.2.1-.4.1-.7.1-.8 0-1.3-.6-1.3-1.3 0-.8.4-1.2 1-1.4 1.7-.5 3.6-.8 5.8-.8 4 0 7.8 1 10.7 2.9.4.3.7.7.7 1.3 0 .8-.6 1.3-1.4 1.3z" fill="white"/>
-      </svg>
-      <span class="logo-text">Melodify</span>
+    <!-- Brand -->
+    <div class="flex items-center gap-3 flex-shrink-0">
+      <div style="width:36px;height:36px;border-radius:10px;background:#111218;display:flex;align-items:center;justify-content:center">
+        <svg viewBox="0 0 24 24" fill="none" style="width:22px;height:22px">
+          <circle cx="12" cy="12" r="12" fill="#1db954"/>
+          <path d="M17.5 16.5c-.2 0-.4-.1-.6-.2-1.7-1-3.8-1.6-6-1.6-1.2 0-2.5.2-3.7.4-.2 0-.4.1-.6.1-.5 0-.9-.4-.9-.9s.3-.8.8-1c1.5-.4 3-.5 4.4-.5 2.6 0 5 .6 7 1.8.3.2.5.4.5.9 0 .6-.4 1-.9 1zm1.3-3.6c-.3 0-.5-.1-.7-.2-2-1.2-4.7-1.8-7.5-1.8-1.5 0-2.8.2-3.8.5-.2.1-.4.1-.6.1-.6 0-1.1-.5-1.1-1.1 0-.6.3-1 .9-1.2 1.3-.4 2.7-.6 4.7-.6 3.2 0 6.3.8 8.7 2.3.4.3.7.6.7 1.1 0 .7-.5 1.1-1.1 1zm1.5-4.1c-.3 0-.5-.1-.7-.2C17 7.2 14 6.5 10.7 6.5c-1.7 0-3.3.2-4.7.6-.2.1-.4.1-.7.1-.8 0-1.3-.6-1.3-1.3 0-.8.4-1.2 1-1.4 1.7-.5 3.6-.8 5.8-.8 4 0 7.8 1 10.7 2.9.4.3.7.7.7 1.3 0 .8-.6 1.3-1.4 1.3z" fill="white"/>
+        </svg>
+      </div>
+      <div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:16px;font-weight:800;color:#111218;letter-spacing:-.3px">Melodify</span>
+          <span style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:6px;background:rgba(0,0,0,0.08);color:#7E8494">Open Source</span>
+        </div>
+        <p style="font-size:10px;color:#adb3c5;font-weight:500;line-height:1">ad-free YouTube client</p>
+      </div>
     </div>
 
-    <!-- Nav -->
-    <nav>
+    <!-- Search -->
+    <div style="flex:1;max-width:520px">
+      <div style="position:relative;display:flex;align-items:center">
+        <svg style="position:absolute;left:14px;width:15px;height:15px;fill:none;stroke:#adb3c5;stroke-width:2.2;pointer-events:none" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3" stroke-linecap="round"/></svg>
+        <input id="searchInput" type="text" autocomplete="off" spellcheck="false"
+          placeholder="Search songs, artists, or paste YouTube link..."
+          style="width:100%;padding:10px 14px 10px 40px;background:rgba(255,255,255,0.8);backdrop-filter:blur(12px);border:1.5px solid rgba(255,255,255,0.9);border-radius:100px;font-size:13px;color:#111218;outline:none;transition:all .18s;box-shadow:0 2px 10px rgba(0,0,0,0.05)"
+          onfocus="this.style.background='#fff';this.style.borderColor='#111218'"
+          onblur="this.style.background='rgba(255,255,255,0.8)';this.style.borderColor='rgba(255,255,255,0.9)'"
+        />
+        <div style="position:absolute;right:14px;display:flex;align-items:center;gap:4px;pointer-events:none">
+          <kbd style="padding:2px 6px;font-size:10px;font-family:monospace;color:#adb3c5;background:#f3f4f8;border-radius:5px;border:1px solid #e4e6ed">⌘K</kbd>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right controls -->
+    <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;margin-left:auto">
+      <!-- Buffer indicator -->
+      <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#adb3c5;font-weight:500">
+        <div class="buf-dot" id="chunkDot"></div>
+        <span id="chunkText"></span>
+      </div>
+      <!-- Version badge -->
+      <span style="font-size:10px;font-family:monospace;color:#adb3c5;background:rgba(0,0,0,0.05);padding:4px 8px;border-radius:6px">v2024.09</span>
+    </div>
+
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════════
+     MAIN
+═══════════════════════════════════════════ -->
+<main style="min-height:calc(100vh - 56px - var(--player-h));padding:16px 24px 100px;max-width:1440px;margin:0 auto;position:relative;z-index:10">
+
+  <!-- Tab row + library hidden div -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+    <div style="display:flex;align-items:center;gap:4px;padding:4px;background:rgba(255,255,255,0.7);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.9);border-radius:16px;box-shadow:0 2px 10px rgba(0,0,0,0.04)">
       <div class="nav-item active" id="navHome" onclick="showHome();setNavActive(0)">
         <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
         <span>Home</span>
@@ -964,309 +504,343 @@ a{color:inherit;text-decoration:none}
         <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
         <span>Search</span>
       </div>
-      <div class="nav-item" id="navDj" onclick="showAiDj()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="url(#djGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <defs><linearGradient id="djGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#bf55ec"/><stop offset="100%" stop-color="#4fc3f7"/></linearGradient></defs>
-          <path d="M12 2a10 10 0 0 1 10 10v6a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h2"/>
-          <path d="M12 2a10 10 0 0 0-10 10v6a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2H2"/>
-          <circle cx="12" cy="12" r="3" fill="url(#djGrad)" stroke="none"/>
-        </svg>
-        <span style="background:linear-gradient(90deg,#bf55ec,#4fc3f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:800">AI DJ</span>
+      <div class="nav-item" id="navLibrary" onclick="showPlaylist('liked');setNavActive(2)">
+        <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+        <span>Library</span>
       </div>
-    </nav>
-  </div>
-
-  <div class="sidebar-lib">
-    <div class="lib-header">
-      <div class="lib-title">
-        <svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8 12.5v-9l6 4.5-6 4.5z"/></svg>
-        <span>Your Library</span>
-      </div>
-      <button class="lib-add" id="createPlBtn" data-tip="Create playlist" onclick="openCreateModal()">
+      <div class="nav-item" id="createPlBtn" onclick="openCreateModal()" style="border:1.5px dashed rgba(0,0,0,0.15)">
         <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-      </button>
+        <span>New</span>
+      </div>
     </div>
-    <div class="pl-list" id="playlistList"></div>
+
+    <!-- Hidden playlist list for JS compatibility -->
+    <div id="playlistList" style="display:none"></div>
   </div>
 
-</aside>
+  <!-- Main grid -->
+  <div style="display:flex;justify-content:center;align-items:start;position:relative;width:100%;max-width:1400px;margin:0 auto">
 
-<!-- ══════════════════════════════════════
-     MAIN
-══════════════════════════════════════ -->
-<main class="main">
-  <div class="art-bg" id="artBg"></div>
-
-  <!-- Top bar -->
-  <div class="topbar">
-    <div class="nav-arrows">
-      <button class="nav-arrow" data-tip="Back" onclick="history.back()">
-        <svg viewBox="0 0 24 24"><path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6z"/></svg>
-      </button>
-      <button class="nav-arrow" data-tip="Forward" onclick="history.forward()">
-        <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
-      </button>
+    <!-- Prev peek (xl only) -->
+    <div class="xl-only" style="position:absolute;left:20px;top:0;bottom:0;display:flex;align-items:center;z-index:1">
+      <div onclick="prevTrack()" style="width:250px;border-radius:32px;background:rgba(255,255,255,0.65);backdrop-filter:blur(24px);padding:24px;display:flex;flex-direction:column;gap:18px;cursor:pointer;opacity:0;transform:scale(.85) translateX(40px);transition:all .5s cubic-bezier(0.4, 0, 0.2, 1);box-shadow:0 12px 30px rgba(0,0,0,0.08);border:1px solid rgba(255,255,255,0.8)" id="prevPeekCard" onmouseenter="this.style.opacity='1';this.style.transform='scale(.98) translateX(20px)';this.style.boxShadow='0 24px 60px rgba(0,0,0,0.12)'" onmouseleave="if(this.dataset.active==='1'){this.style.opacity='.8';this.style.transform='scale(.92) translateX(60px)';this.style.boxShadow='0 12px 30px rgba(0,0,0,0.08)'}">
+        <div style="display:flex;align-items:center;gap:6px">
+          <svg viewBox="0 0 24 24" fill="var(--t2)" style="width:16px;height:16px"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+          <span style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--t2)">Previous</span>
+        </div>
+        <img id="prevPeekThumb" src="" style="width:100%;aspect-ratio:1;border-radius:18px;object-fit:cover;box-shadow:0 8px 24px rgba(0,0,0,0.12);display:none" alt=""/>
+        <div>
+          <div id="prevPeekTitle" style="font-size:15px;font-weight:800;color:var(--t1);line-height:1.3;margin-bottom:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden"></div>
+          <div id="prevPeekArtist" style="font-size:13px;font-weight:600;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+        </div>
+      </div>
     </div>
 
-    <div class="search-field">
-      <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-      <input class="search-input" id="searchInput" type="text"
-        placeholder="What do you want to listen to?" autocomplete="off" spellcheck="false"/>
-    </div>
+    <!-- ══ MAIN PLAYER CARD ══ -->
+    <div style="width:min(860px,100%);background:rgba(255,255,255,0.72);backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,0.9);border-radius:32px;box-shadow:0 24px 60px rgba(80,85,120,0.12),0 8px 24px rgba(0,0,0,0.06);padding:28px;display:flex;gap:24px;min-height:580px;position:relative;z-index:2">
 
-    <div class="topbar-right">
-      <button class="premium-btn">Explore Premium</button>
-      <button class="avatar-btn">U</button>
-    </div>
-  </div>
+      <!-- LEFT: Album art + controls -->
+      <div style="width:300px;flex-shrink:0;display:flex;flex-direction:column;gap:16px">
 
-  <!-- Scrollable content -->
-  <div class="content" id="mainContent">
-    <div class="content-pad">
+        <!-- Art container -->
+        <div style="background:#F3F4F8;border-radius:24px;padding:14px;border:1px solid rgba(255,255,255,0.9);box-shadow:inset 0 2px 6px rgba(255,255,255,0.9),0 8px 24px rgba(0,0,0,0.05)">
+          <div style="position:relative;border-radius:18px;overflow:hidden;aspect-ratio:1;background:#e8eaf0;box-shadow:0 12px 32px rgba(0,0,0,0.15)">
+            <img id="plThumb"
+              src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='272' height='272'%3E%3Crect width='272' height='272' fill='%23e8eaf0'/%3E%3Cpath d='M136 88a48 48 0 1 1 0 96 48 48 0 0 1 0-96z' fill='%23cbd0de'/%3E%3C/svg%3E"
+              style="width:100%;height:100%;object-fit:cover;cursor:pointer;transition:transform .6s cubic-bezier(0.2, 0.8, 0.2, 1)"
+              onmouseenter="this.style.transform='scale(1.05)'" onmouseleave="this.style.transform='scale(1)'"
+              onclick="currentTrack&&focusTrack()" alt="Album art"/>
 
-      <!-- HOME -->
-      <div id="homeSection">
-        <div class="greeting" id="greeting">Good evening</div>
-        <div class="quick-grid" id="quickGrid">
-          <div class="quick-tile" onclick="doSearch('trending bollywood 2024')">
-            <img class="quick-thumb" src="https://i.ytimg.com/vi/kTJczUoc26U/mqdefault.jpg" alt=""/>
-            <span class="quick-label">Bollywood Hits</span>
-            <div class="quick-play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
-          </div>
-          <div class="quick-tile" onclick="doSearch('top pop hits 2024')">
-            <img class="quick-thumb" src="https://i.ytimg.com/vi/JGwWNGJdvx8/mqdefault.jpg" alt=""/>
-            <span class="quick-label">Top Pop Hits</span>
-            <div class="quick-play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
-          </div>
-          <div class="quick-tile" onclick="doSearch('chill lofi beats')">
-            <img class="quick-thumb" src="https://i.ytimg.com/vi/5qap5aO4i9A/mqdefault.jpg" alt=""/>
-            <span class="quick-label">Chill LoFi</span>
-            <div class="quick-play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
-          </div>
-          <div class="quick-tile" onclick="doSearch('workout gym music 2024')">
-            <img class="quick-thumb" src="https://i.ytimg.com/vi/dQw4w9WgXcQ/mqdefault.jpg" alt=""/>
-            <span class="quick-label">Workout Mix</span>
-            <div class="quick-play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
-          </div>
-          <div class="quick-tile" onclick="doSearch('arijit singh hits')">
-            <img class="quick-thumb" src="https://i.ytimg.com/vi/xLYiIBCN9ec/mqdefault.jpg" alt=""/>
-            <span class="quick-label">Arijit Singh</span>
-            <div class="quick-play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
-          </div>
-          <div class="quick-tile" onclick="doSearch('party dance hits 2024')">
-            <img class="quick-thumb" src="https://i.ytimg.com/vi/450p7goxZqg/mqdefault.jpg" alt=""/>
-            <span class="quick-label">Party Mode</span>
-            <div class="quick-play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
-          </div>
-        </div>
+            <!-- Heart button overlay -->
+            <button class="pl-heart" id="heartBtn" data-tip="Save to Liked Songs" onclick="toggleHeart()"
+              style="position:absolute;top:12px;right:12px;width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,0.85);backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.12)">
+              <svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:currentColor"><path id="heartPath" d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55l-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>
+            </button>
 
-        <!-- TRENDING SECTION -->
-        <div id="trendingSection">
-          <div class="sec-row">
-            <div class="sec-title-sm" style="font-size:20px;font-weight:800;color:var(--white)">
-              <span class="fire-badge">🔥 Trending</span>
-              Top 10 on YouTube Music Today
+            <!-- yt-dlp badge -->
+            <div style="position:absolute;top:12px;left:12px;padding:5px 10px;background:rgba(0,0,0,0.6);backdrop-filter:blur(12px);border-radius:100px;display:flex;align-items:center;gap:6px">
+              <span style="width:6px;height:6px;border-radius:50%;background:#1db954;display:inline-block"></span>
+              <span style="font-size:10px;font-weight:800;color:#fff;letter-spacing:.04em">yt-dlp</span>
             </div>
-            <span class="see-all" onclick="loadTrending(true)" id="trendRefresh">Refresh</span>
-          </div>
-          <div class="trend-grid" id="trendGrid">
-            <!-- skeleton rows – JS immediately replaces these on load -->
-            <div class="trend-row" style="pointer-events:none"><div class="trend-rank trend-sk" style="height:22px;width:28px;border-radius:3px">&nbsp;</div><div class="trend-thumb trend-sk"></div><div class="trend-info"><div class="trend-sk" style="height:12px;width:130px;margin-bottom:6px;border-radius:3px"></div><div class="trend-sk" style="height:10px;width:80px;border-radius:3px"></div></div></div>
-            <div class="trend-row" style="pointer-events:none"><div class="trend-rank trend-sk" style="height:22px;width:28px;border-radius:3px">&nbsp;</div><div class="trend-thumb trend-sk"></div><div class="trend-info"><div class="trend-sk" style="height:12px;width:150px;margin-bottom:6px;border-radius:3px"></div><div class="trend-sk" style="height:10px;width:80px;border-radius:3px"></div></div></div>
-            <div class="trend-row" style="pointer-events:none"><div class="trend-rank trend-sk" style="height:22px;width:28px;border-radius:3px">&nbsp;</div><div class="trend-thumb trend-sk"></div><div class="trend-info"><div class="trend-sk" style="height:12px;width:110px;margin-bottom:6px;border-radius:3px"></div><div class="trend-sk" style="height:10px;width:80px;border-radius:3px"></div></div></div>
-            <div class="trend-row" style="pointer-events:none"><div class="trend-rank trend-sk" style="height:22px;width:28px;border-radius:3px">&nbsp;</div><div class="trend-thumb trend-sk"></div><div class="trend-info"><div class="trend-sk" style="height:12px;width:140px;margin-bottom:6px;border-radius:3px"></div><div class="trend-sk" style="height:10px;width:80px;border-radius:3px"></div></div></div>
-            <div class="trend-row" style="pointer-events:none"><div class="trend-rank trend-sk" style="height:22px;width:28px;border-radius:3px">&nbsp;</div><div class="trend-thumb trend-sk"></div><div class="trend-info"><div class="trend-sk" style="height:12px;width:130px;margin-bottom:6px;border-radius:3px"></div><div class="trend-sk" style="height:10px;width:80px;border-radius:3px"></div></div></div>
-            <div class="trend-row" style="pointer-events:none"><div class="trend-rank trend-sk" style="height:22px;width:28px;border-radius:3px">&nbsp;</div><div class="trend-thumb trend-sk"></div><div class="trend-info"><div class="trend-sk" style="height:12px;width:160px;margin-bottom:6px;border-radius:3px"></div><div class="trend-sk" style="height:10px;width:80px;border-radius:3px"></div></div></div>
-            <div class="trend-row" style="pointer-events:none"><div class="trend-rank trend-sk" style="height:22px;width:28px;border-radius:3px">&nbsp;</div><div class="trend-thumb trend-sk"></div><div class="trend-info"><div class="trend-sk" style="height:12px;width:120px;margin-bottom:6px;border-radius:3px"></div><div class="trend-sk" style="height:10px;width:80px;border-radius:3px"></div></div></div>
-            <div class="trend-row" style="pointer-events:none"><div class="trend-rank trend-sk" style="height:22px;width:28px;border-radius:3px">&nbsp;</div><div class="trend-thumb trend-sk"></div><div class="trend-info"><div class="trend-sk" style="height:12px;width:145px;margin-bottom:6px;border-radius:3px"></div><div class="trend-sk" style="height:10px;width:80px;border-radius:3px"></div></div></div>
-            <div class="trend-row" style="pointer-events:none"><div class="trend-rank trend-sk" style="height:22px;width:28px;border-radius:3px">&nbsp;</div><div class="trend-thumb trend-sk"></div><div class="trend-info"><div class="trend-sk" style="height:12px;width:130px;margin-bottom:6px;border-radius:3px"></div><div class="trend-sk" style="height:10px;width:80px;border-radius:3px"></div></div></div>
-            <div class="trend-row" style="pointer-events:none"><div class="trend-rank trend-sk" style="height:22px;width:28px;border-radius:3px">&nbsp;</div><div class="trend-thumb trend-sk"></div><div class="trend-info"><div class="trend-sk" style="height:12px;width:155px;margin-bottom:6px;border-radius:3px"></div><div class="trend-sk" style="height:10px;width:80px;border-radius:3px"></div></div></div>
-          </div>
 
-        </div>
-
-        <div class="empty" id="homeEmpty">
-          <svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
-          <h3>Start listening</h3>
-          <p>Search for a song, artist or album above</p>
-        </div>
-      </div>
-
-      <!-- SEARCH RESULTS -->
-      <div id="searchSection" style="display:none">
-        <div class="sec-title" id="resultsTitle">Results</div>
-        <div class="tlist-header">
-          <div>#</div>
-          <div></div>
-          <div>Title</div>
-          <div>Channel</div>
-          <div style="text-align:right">Duration</div>
-          <div></div>
-        </div>
-        <div class="track-list" id="resultList"></div>
-      </div>
-
-      <!-- AI DJ SECTION -->
-      <div id="aiDjSection" style="display:none">
-        <div class="dj-container">
-          <div class="dj-hero">
-            <div class="dj-orb"></div>
-            <div class="dj-orb dj-orb-2"></div>
-            <h1>Your Personal AI DJ</h1>
-            <p>Tell me your vibe, context, or mood. I'll perfectly mix your history with new discoveries.</p>
-            
-            <div class="dj-input-wrap">
-              <input type="text" id="djMoodInput" class="dj-input" placeholder="e.g. late night drive, sad & alone, aggressive gym..." onkeydown="if(event.key==='Enter') generateAiPlaylist()"/>
-              <button class="dj-btn" id="djGenerateBtn" onclick="generateAiPlaylist()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M5 3l14 9-14 9V3z"/></svg>
-                Play for my mood
-              </button>
+            <!-- Quality + EQ bars at bottom -->
+            <div style="position:absolute;bottom:0;left:0;right:0;padding:12px 14px;background:linear-gradient(transparent,rgba(0,0,0,0.65));display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.95);letter-spacing:0.02em">HQ Stream</span>
+              <div style="display:flex;align-items:flex-end;gap:3px;height:12px" id="bottomEqBars">
+                <span style="width:2.5px;height:4px;background:#1db954;border-radius:1.5px"></span>
+                <span style="width:2.5px;height:9px;background:#1db954;border-radius:1.5px"></span>
+                <span style="width:2.5px;height:6px;background:#1db954;border-radius:1.5px"></span>
+                <span style="width:2.5px;height:11px;background:#1db954;border-radius:1.5px"></span>
+              </div>
             </div>
-            <div id="djStatus" class="dj-status"></div>
           </div>
-          
-          <div class="tlist-header" id="djListHeader" style="display:none;margin-top:20px">
-            <div>#</div><div></div><div>Title</div><div>Channel</div>
-            <div style="text-align:right">Duration</div><div></div>
-          </div>
-          <div class="track-list" id="djResultList" style="padding-bottom:120px"></div>
         </div>
-      </div>
 
-      <!-- AI DJ SECTION -->
-      <div id="aiDjSection" style="display:none">
-        <div class="dj-container">
-          <div class="dj-hero">
-            <div class="dj-orb"></div>
-            <div class="dj-orb dj-orb-2"></div>
-            <h1>Your Personal AI DJ</h1>
-            <p>Tell me your vibe, context, or mood. I'll perfectly mix your history with new discoveries.</p>
-            
-            <div class="dj-input-wrap">
-              <input type="text" id="djMoodInput" class="dj-input" placeholder="e.g. late night drive, sad & alone, aggressive gym..." onkeydown="if(event.key==='Enter') generateAiPlaylist()"/>
-              <button class="dj-btn" id="djGenerateBtn" onclick="generateAiPlaylist()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M5 3l14 9-14 9V3z"/></svg>
-                Play for my mood
-              </button>
-            </div>
-            <div id="djStatus" class="dj-status"></div>
-          </div>
-          
-          <div class="tlist-header" id="djListHeader" style="display:none;margin-top:20px">
-            <div>#</div><div></div><div>Title</div><div>Channel</div>
-            <div style="text-align:right">Duration</div><div></div>
-          </div>
-          <div class="track-list" id="djResultList" style="padding-bottom:120px"></div>
+        <!-- Track name & artist under art -->
+        <div style="text-align:center;padding:4px 8px 0">
+          <div id="plTitle" class="pl-title idle" style="font-size:17px;font-weight:800;color:#111218;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:6px;cursor:pointer" onclick="currentTrack&&focusTrack()">Nothing playing</div>
+          <div id="plArtist" style="font-size:13px;font-weight:500;color:#7E8494;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span></span></div>
         </div>
-      </div>
 
-      <!-- PLAYLIST VIEW -->
-      <div id="playlistSection" style="display:none">
-        <div class="pv-header">
-          <div class="pv-art" id="pvArt">
-            <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-          </div>
-          <div class="pv-meta">
-            <div class="pv-type" id="pvType">Playlist</div>
-            <div class="pv-name" id="pvName">Liked Songs</div>
-            <div class="pv-desc" id="pvDesc">0 songs</div>
-          </div>
-        </div>
-        <div class="pv-actions">
-          <button class="pv-play-all" id="pvPlayAll" title="Play all">
-            <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        <!-- Mini transport controls -->
+        <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:4px">
+          <button class="ctrl" id="shuffleBtn" data-tip="Shuffle" onclick="this.classList.toggle('on')">
+            <svg viewBox="0 0 24 24" style="width:18px;height:18px"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>
           </button>
-          <button class="pv-del" id="pvDelete" title="Delete playlist" style="display:none">
-            <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+          <button class="ctrl ctrl-lg" id="prevBtn" data-tip="Previous" onclick="prevTrack()" style="margin:0 4px">
+            <svg viewBox="0 0 24 24" style="width:24px;height:24px"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+          </button>
+          <button class="ctrl ctrl-play" id="playBtn" data-tip="Play" onclick="togglePlay()" style="width:44px;height:44px">
+            <svg id="playIcon" viewBox="0 0 24 24" style="width:22px;height:22px"><path d="M8 5v14l11-7z"/></svg>
+          </button>
+          <button class="ctrl ctrl-lg" id="nextBtn" data-tip="Next" onclick="nextTrack()" style="margin:0 4px">
+            <svg viewBox="0 0 24 24" style="width:24px;height:24px"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+          </button>
+          <button class="ctrl" id="repeatBtn" data-tip="Repeat" onclick="this.classList.toggle('on')">
+            <svg viewBox="0 0 24 24" style="width:18px;height:18px"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>
           </button>
         </div>
-        <div style="padding:0 24px 120px">
-          <div class="tlist-header" id="pvTrackHeader">
-            <div>#</div><div></div><div>Title</div><div>Channel</div>
-            <div style="text-align:right">Duration</div><div></div>
-          </div>
-          <div class="track-list" id="playlistTrackList"></div>
-        </div>
+
       </div>
 
+      <!-- RIGHT: Content area -->
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:0;overflow:hidden">
+
+        <!-- Now-playing dark banner -->
+        <div id="nowPlayingBanner" style="display:none;background:#12131A;border-radius:18px;padding:16px 20px;margin-bottom:20px;cursor:pointer;box-shadow:0 8px 24px rgba(17,18,24,0.15)" onclick="focusTrack()">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+            <div style="display:flex;align-items:center;gap:14px;min-width:0;flex:1">
+              <div style="width:32px;height:32px;border-radius:10px;background:rgba(29,185,84,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                <div class="eq" style="height:16px;gap:2px">
+                  <span style="width:2.5px;height:6px"></span>
+                  <span style="width:2.5px;height:12px"></span>
+                  <span style="width:2.5px;height:8px"></span>
+                </div>
+              </div>
+              <div style="min-width:0;flex:1">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:3px">
+                  <span id="nowPlayTitle" style="font-size:14px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px">—</span>
+                  <span style="font-size:9px;padding:2.5px 7px;border-radius:5px;background:rgba(29,185,84,0.25);color:#1ed760;font-weight:800;letter-spacing:0.04em;flex-shrink:0">LIVE</span>
+                </div>
+                <span id="nowPlayArtist" style="font-size:12px;color:#a0a5b5">—</span>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:18px;flex-shrink:0">
+              <button class="pl-heart" id="heartBtnBanner" onclick="event.stopPropagation();toggleHeart()" style="color:#7E8494">
+                <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:currentColor"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3z"/></svg>
+              </button>
+              <span style="font-size:12px;font-weight:600;color:#7E8494;font-variant-numeric:tabular-nums">
+                <span id="timeCurrentBanner">-:--</span>
+                <span style="color:#4a4f5f"> / </span>
+                <span id="timeTotalBanner">-:--</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Scrollable content sections with bottom mask -->
+        <div style="flex:1;overflow-y:auto;overflow-x:hidden;min-height:0;padding-bottom:12px;mask-image:linear-gradient(to bottom, black calc(100% - 24px), transparent 100%);-webkit-mask-image:linear-gradient(to bottom, black calc(100% - 24px), transparent 100%)" class="custom-scroll">
+
+
+          <!-- HOME SECTION -->
+          <div id="homeSection">
+            <div id="greeting" style="font-size:20px;font-weight:800;color:#111218;margin-bottom:14px">Good evening</div>
+
+            <!-- Quick tiles -->
+            <div class="quick-grid" id="quickGrid">
+              <div class="quick-tile" onclick="doSearch('trending bollywood 2024')"><div class="quick-tile-icon" style="background:linear-gradient(135deg,#ff6b35,#f7c59f)">🎵</div>Bollywood Hits</div>
+              <div class="quick-tile" onclick="doSearch('top pop songs 2024')"><div class="quick-tile-icon" style="background:linear-gradient(135deg,#a78bfa,#7c3aed)">🎶</div>Top Pop</div>
+              <div class="quick-tile" onclick="doSearch('chill lo-fi beats')"><div class="quick-tile-icon" style="background:linear-gradient(135deg,#6ee7b7,#059669)">🌙</div>Chill LoFi</div>
+              <div class="quick-tile" onclick="doSearch('punjabi hits 2024')"><div class="quick-tile-icon" style="background:linear-gradient(135deg,#fcd34d,#f59e0b)">🥁</div>Punjabi Hits</div>
+              <div class="quick-tile" onclick="doSearch('workout motivation music')"><div class="quick-tile-icon" style="background:linear-gradient(135deg,#f87171,#dc2626)">💪</div>Workout</div>
+              <div class="quick-tile" onclick="doSearch('classical music instrumental')"><div class="quick-tile-icon" style="background:linear-gradient(135deg,#93c5fd,#3b82f6)">🎻</div>Classical</div>
+            </div>
+
+            <!-- Trending -->
+            <div id="trendingSection">
+              <div class="section-label">
+                🔥 Trending Now
+                <button id="trendRefresh" onclick="loadTrending()" data-tip="Refresh" style="display:flex;align-items:center;padding:4px;border-radius:6px;color:var(--t3);transition:all var(--transition)">
+                  <svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                </button>
+              </div>
+              <div class="trend-grid" id="trendGrid">
+                <!-- filled by JS -->
+              </div>
+              <div id="homeEmpty" class="empty" style="display:none">
+                <svg viewBox="0 0 24 24"><path d="M12 3v9.28a4.39 4.39 0 0 0-1.5-.28C8.01 12 6 14.01 6 16.5S8.01 21 10.5 21c2.31 0 4.2-1.75 4.45-4H15V6h3V3h-6z"/></svg>
+                <p>Search for a song above to start listening</p>
+              </div>
+            </div>
+          </div><!-- /#homeSection -->
+
+          <!-- SEARCH SECTION -->
+          <div id="searchSection" style="display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+              <div id="resultsTitle" class="results-title">Results</div>
+            </div>
+            <div class="tlist-header">
+              <div>#</div><div></div><div>Title</div><div>Channel</div>
+              <div style="text-align:right">Duration</div><div></div><div></div>
+            </div>
+            <div class="track-list" id="resultList"></div>
+          </div><!-- /#searchSection -->
+
+          <!-- PLAYLIST SECTION -->
+          <div id="playlistSection" style="display:none">
+            <div class="pv-header">
+              <div class="pv-art" id="pvArt">
+                <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+              </div>
+              <div class="pv-meta">
+                <div class="pv-type" id="pvType">Playlist</div>
+                <div class="pv-name" id="pvName">Liked Songs</div>
+                <div class="pv-desc" id="pvDesc">0 songs</div>
+              </div>
+            </div>
+            <div class="pv-actions">
+              <button class="pv-play-all" id="pvPlayAll">
+                <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                Play All
+              </button>
+              <button class="pv-del" id="pvDelete" style="display:none">
+                <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                Delete
+              </button>
+            </div>
+            <div class="tlist-header" id="pvTrackHeader" style="display:none">
+              <div>#</div><div></div><div>Title</div><div>Channel</div>
+              <div style="text-align:right">Duration</div><div></div><div></div>
+            </div>
+            <div class="track-list" id="playlistTrackList"></div>
+          </div><!-- /#playlistSection -->
+
+        </div><!-- /scrollable -->
+
+        <!-- Bottom meta strip -->
+        <div style="padding-top:10px;border-top:1px solid rgba(0,0,0,0.06);margin-top:8px;display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:10px;color:#adb3c5;font-weight:500">Melodify • yt-dlp audio streaming • No ads</span>
+          <button style="font-size:10px;color:#adb3c5;display:flex;align-items:center;gap:3px;transition:color .15s" onmouseenter="this.style.color='#7E8494'" onmouseleave="this.style.color='#adb3c5'" onclick="toggleQueuePanel()">
+            <svg viewBox="0 0 24 24" style="width:11px;height:11px;fill:currentColor"><path d="M4 18h16v-2H4v2zm0-5h16v-2H4v2zm0-7v2h16V6H4z"/></svg>
+            View Queue
+          </button>
+        </div>
+
+      </div><!-- /right col -->
+
+    </div><!-- /main card -->
+
+    <!-- Next peek (xl only) -->
+    <div class="xl-only" style="position:absolute;right:20px;top:0;bottom:0;display:flex;align-items:center;z-index:1">
+      <div onclick="nextTrack()" style="width:250px;border-radius:32px;background:rgba(255,255,255,0.65);backdrop-filter:blur(24px);padding:24px;display:flex;flex-direction:column;gap:18px;cursor:pointer;opacity:0;transform:scale(.85) translateX(-40px);transition:all .5s cubic-bezier(0.4, 0, 0.2, 1);box-shadow:0 12px 30px rgba(0,0,0,0.08);border:1px solid rgba(255,255,255,0.8)" id="nextPeekCard" onmouseenter="this.style.opacity='1';this.style.transform='scale(.98) translateX(-20px)';this.style.boxShadow='0 24px 60px rgba(0,0,0,0.12)'" onmouseleave="if(this.dataset.active==='1'){this.style.opacity='.8';this.style.transform='scale(.92) translateX(-60px)';this.style.boxShadow='0 12px 30px rgba(0,0,0,0.08)'}">
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px">
+          <span style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--t2)">Up Next</span>
+          <svg viewBox="0 0 24 24" fill="var(--t2)" style="width:16px;height:16px"><path d="m6 18 8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+        </div>
+        <img id="nextPeekThumb" src="" style="width:100%;aspect-ratio:1;border-radius:18px;object-fit:cover;box-shadow:0 8px 24px rgba(0,0,0,0.12);display:none" alt=""/>
+        <div>
+          <div id="nextPeekTitle" style="font-size:15px;font-weight:800;color:var(--t1);line-height:1.3;margin-bottom:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden"></div>
+          <div id="nextPeekArtist" style="font-size:13px;font-weight:600;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /grid -->
 
 </main>
 
-<!-- ══════════════════════════════════════
-     PLAYER BAR
-══════════════════════════════════════ -->
-<footer class="player">
+<!-- ═══════════════════════════════════════════
+     PLAYER BAR (footer)
+═══════════════════════════════════════════ -->
+<footer style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);width:calc(100% - 48px);max-width:860px;z-index:100">
+  <div style="background:rgba(255,255,255,0.85);backdrop-filter:blur(32px);border:1px solid rgba(255,255,255,0.95);border-radius:100px;box-shadow:0 16px 40px rgba(80,85,120,0.15),0 4px 12px rgba(0,0,0,0.05);padding:10px 18px 10px 10px;display:flex;align-items:center;gap:24px">
 
-  <!-- Left -->
-  <div class="pl-left">
-    <img class="pl-thumb" id="plThumb"
-      src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'%3E%3Crect width='56' height='56' fill='%23282828'/%3E%3C/svg%3E"
-      alt="" onclick="currentTrack&&focusTrack()"/>
-    <div class="pl-meta">
-      <div class="pl-title idle" id="plTitle">Nothing playing</div>
-      <div class="pl-artist" id="plArtist"><span></span></div>
-    </div>
-    <button class="pl-heart" id="heartBtn" data-tip="Save to Liked Songs" onclick="toggleHeart()">
-      <svg viewBox="0 0 24 24"><path id="heartPath" d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55l-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>
-    </button>
-  </div>
-
-  <!-- Center -->
-  <div class="pl-center">
-    <div class="pl-controls">
-      <button class="ctrl" id="shuffleBtn" data-tip="Enable shuffle" onclick="this.classList.toggle('on')">
-        <svg viewBox="0 0 24 24"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>
-      </button>
-      <button class="ctrl ctrl-lg" data-tip="Previous" onclick="skip(-30)">
-        <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
-      </button>
-      <button class="ctrl ctrl-play" id="playBtn" data-tip="Play" onclick="togglePlay()">
-        <svg id="playIcon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-      </button>
-      <button class="ctrl ctrl-lg" data-tip="Next" onclick="skip(30)">
-        <svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
-      </button>
-      <button class="ctrl" id="repeatBtn" data-tip="Enable repeat" onclick="this.classList.toggle('on')">
-        <svg viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>
-      </button>
-    </div>
-
-    <div class="progress-row">
-      <span class="time" id="timeCurrent">-:--</span>
-      <div class="pbar" id="progressBg" onclick="seekTo(event)">
-        <div class="pbar-buf" id="bufferBar"></div>
-        <div class="pbar-fill" id="progressFill"></div>
-        <div class="pbar-knob" id="progressKnob"></div>
+    <!-- Left: track info -->
+    <div style="display:flex;align-items:center;gap:12px;min-width:180px;flex:0 0 auto">
+      <div style="width:44px;height:44px;border-radius:50%;background:#e8eaf0;flex-shrink:0;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.08)">
+        <!-- We use CSS to mirror #plThumb via object-fit in a CSS background - instead show a music note icon if nothing playing -->
+        <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center" id="footerArtPlaceholder">
+          <svg viewBox="0 0 24 24" style="width:20px;height:20px;fill:#adb3c5"><path d="M12 3v9.28a4.39 4.39 0 0 0-1.5-.28C8.01 12 6 14.01 6 16.5S8.01 21 10.5 21c2.31 0 4.2-1.75 4.45-4H15V6h3V3h-6z"/></svg>
+        </div>
       </div>
-      <span class="time r" id="timeTotal">-:--</span>
-    </div>
-  </div>
-
-  <!-- Right -->
-  <div class="pl-right">
-    <div class="buf-status">
-      <div class="buf-dot" id="chunkDot"></div>
-      <span id="chunkText"></span>
-    </div>
-
-    <button class="ctrl" data-tip="Now playing view">
-      <svg viewBox="0 0 24 24"><path d="M4 18h16v-2H4v2zm0-5h16v-2H4v2zm0-7v2h16V6H4z"/></svg>
-    </button>
-
-    <button class="vol-icon ctrl" id="volBtn" onclick="toggleMute()" data-tip="Mute">
-      <svg id="volIcon" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
-    </button>
-    <div class="vol-wrap">
-      <div class="pbar" id="volBar" onclick="seekVol(event)">
-        <div class="pbar-fill" id="volFill" style="width:85%"></div>
-        <div class="pbar-knob" id="volKnob" style="left:85%;opacity:0"></div>
+      <div style="min-width:0">
+        <div style="font-size:13px;font-weight:800;color:#111218;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px" id="footerTitle">Nothing playing</div>
+        <div style="font-size:11px;font-weight:600;color:#7E8494;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px" id="footerArtist"></div>
       </div>
     </div>
-  </div>
 
+    <!-- Center: progress -->
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;max-width:600px">
+      <div style="display:flex;align-items:center;gap:10px;width:100%">
+        <span style="font-size:10px;font-weight:600;color:#7E8494;min-width:32px;text-align:right;font-variant-numeric:tabular-nums" id="timeCurrent">-:--</span>
+        <div class="pbar" id="progressBg" onclick="seekTo(event)">
+          <div class="pbar-buf" id="bufferBar"></div>
+          <div class="pbar-fill" id="progressFill"></div>
+          <div class="pbar-knob" id="progressKnob"></div>
+        </div>
+        <span style="font-size:10px;font-weight:600;color:#adb3c5;min-width:32px;font-variant-numeric:tabular-nums" id="timeTotal">-:--</span>
+      </div>
+    </div>
+
+    <!-- Right: volume + controls -->
+    <div style="display:flex;align-items:center;gap:6px;min-width:180px;justify-content:flex-end;flex:0 0 auto">
+      <button class="ctrl" id="queueBtn" data-tip="Queue" onclick="toggleQueuePanel()">
+        <svg viewBox="0 0 24 24"><path d="M4 18h16v-2H4v2zm0-5h16v-2H4v2zm0-7v2h16V6H4z"/></svg>
+      </button>
+      <button class="ctrl vol-icon" id="volBtn" onclick="toggleMute()" data-tip="Mute">
+        <svg id="volIcon" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+      </button>
+      <div class="vol-wrap">
+        <div class="pbar" id="volBar" onclick="seekVol(event)">
+          <div class="pbar-fill" id="volFill" style="width:85%"></div>
+          <div class="pbar-knob" id="volKnob" style="left:85%;opacity:0"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
 </footer>
 
-<!-- MOBILE NAVIGATION -->
+<!-- ═══════════════════════════════════════════
+     QUEUE PANEL (slide-in)
+═══════════════════════════════════════════ -->
+<div class="queue-panel" id="queuePanel">
+  <div class="queue-panel-header">
+    <h3>🎵 Up Next</h3>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="autoplay-badge on" id="autoplayBadge" onclick="toggleAutoplay()">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
+        <span id="autoplayLabel">Autoplay On</span>
+      </div>
+      <button class="queue-close" onclick="toggleQueuePanel()">
+        <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="queue-now" id="queueNowSection" style="display:none">
+    <div class="queue-now-label">Now Playing</div>
+    <div class="queue-now-track">
+      <img id="queueNowThumb" src="" alt=""/>
+      <div class="queue-now-info">
+        <div class="queue-now-title" id="queueNowTitle">—</div>
+        <div class="queue-now-artist" id="queueNowArtist">—</div>
+      </div>
+    </div>
+  </div>
+  <div class="queue-next-label">
+    <span>Next Up</span>
+    <span id="queueCountLabel"></span>
+  </div>
+  <div class="queue-list" id="queueList">
+    <div style="padding:24px 16px;color:#adb3c5;font-size:13px;text-align:center">
+      Play a song to load recommendations
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     MOBILE NAV
+═══════════════════════════════════════════ -->
 <div class="mobile-nav">
   <div class="mobile-nav-item active" id="mNavHome" onclick="showHome();setNavActive(0);setMNavActive('mNavHome')">
     <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
@@ -1276,19 +850,15 @@ a{color:inherit;text-decoration:none}
     <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
     <span>Search</span>
   </div>
-  <div class="mobile-nav-item ai-dj" id="mNavDj" onclick="showAiDj();setMNavActive('mNavDj')">
-    <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 1 10 10v6a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h2"/><path d="M12 2a10 10 0 0 0-10 10v6a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2H2"/><circle cx="12" cy="12" r="3"/></svg>
-    <span>AI DJ</span>
-  </div>
-  <div class="mobile-nav-item" id="mNavLibrary" onclick="showPlaylist('liked', 'Liked Songs');setMNavActive('mNavLibrary')">
+  <div class="mobile-nav-item" id="mNavLibrary" onclick="showPlaylist('liked','Liked Songs');setMNavActive('mNavLibrary')">
     <svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8 12.5v-9l6 4.5-6 4.5z"/></svg>
     <span>Library</span>
   </div>
 </div>
 
-</div><!-- .shell -->
-
-<!-- CREATE PLAYLIST MODAL -->
+<!-- ═══════════════════════════════════════════
+     CREATE PLAYLIST MODAL
+═══════════════════════════════════════════ -->
 <div class="modal-overlay" id="createModal" onclick="if(event.target===this)closeCreateModal()">
   <div class="modal">
     <h3>Create playlist</h3>
@@ -1301,7 +871,9 @@ a{color:inherit;text-decoration:none}
   </div>
 </div>
 
-<!-- CONTEXT MENU -->
+<!-- ═══════════════════════════════════════════
+     CONTEXT MENU
+═══════════════════════════════════════════ -->
 <div class="ctx-menu" id="ctxMenu">
   <div class="ctx-item" id="ctxLike" onclick="ctxToggleLike()">
     <svg viewBox="0 0 24 24"><path id="ctxHeartPath" d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3z"/></svg>
@@ -1334,7 +906,14 @@ let chunkCache = {}, loadingSet = new Set(), tickId = null;
 let scheduledChunks = new Set(); // tracks chunk-starts already queued as audio nodes
 let playSessionId = 0; // tracking playback session for abandoning stale async chunks
 
-let listeningHistory = []; // tracks last 10 listened songs for AI DJ
+/* ── SMART QUEUE ── */
+let autoQueue   = [];   // upcoming recommended tracks
+let playHistory = [];   // tracks already played (for prev)
+let autoplayOn  = true; // autoplay toggle
+let queuePanelOpen = false;
+let fetchingRecs = false;
+
+
 
 /* ════════════════════════════════════
    INIT
@@ -1517,7 +1096,7 @@ function showPlaylist(id) {
   currentPlaylistId = id;
   document.getElementById('homeSection').style.display    = 'none';
   document.getElementById('searchSection').style.display  = 'none';
-  document.getElementById('aiDjSection').style.display    = 'none';
+
   document.getElementById('playlistSection').style.display = '';
   renderSidebar();
 
@@ -1648,7 +1227,7 @@ function showHome() {
   document.getElementById('homeSection').style.display = '';
   document.getElementById('searchSection').style.display = 'none';
   document.getElementById('playlistSection').style.display = 'none';
-  document.getElementById('aiDjSection').style.display = 'none';
+
   setNavActive(0);
   renderSidebar();
 }
@@ -1657,102 +1236,10 @@ function focusTrack() {
     document.getElementById('searchSection').style.display = '';
     document.getElementById('homeSection').style.display = 'none';
     document.getElementById('playlistSection').style.display = 'none';
-    document.getElementById('aiDjSection').style.display = 'none';
+
   }
 }
-function showAiDj() {
-  currentPlaylistId = null;
-  document.getElementById('homeSection').style.display = 'none';
-  document.getElementById('searchSection').style.display = 'none';
-  document.getElementById('playlistSection').style.display = 'none';
-  document.getElementById('aiDjSection').style.display = '';
-  setNavActive(2); // AI DJ is the 3rd nav item
-  setTimeout(() => document.getElementById('djMoodInput').focus(), 100);
-}
 
-// ── AI DJ LOGIC ───────────────────────────────────────
-async function generateAiPlaylist() {
-  const input = document.getElementById('djMoodInput');
-  const mood = input.value.trim();
-  if (!mood) return;
-
-  const btn = document.getElementById('djGenerateBtn');
-  const status = document.getElementById('djStatus');
-  const list = document.getElementById('djResultList');
-  const header = document.getElementById('djListHeader');
-
-  btn.style.pointerEvents = 'none';
-  btn.style.opacity = '0.7';
-  status.className = 'dj-status loading';
-  status.textContent = 'Curating your perfect vibe... this takes ~5 seconds';
-  
-  // Show skeleton in list
-  header.style.display = '';
-  list.innerHTML = Array(8).fill(null).map((_,i) => `
-    <div class="track-row" style="opacity:1;pointer-events:none">
-      <div class="tr-num sk" style="height:16px;border-radius:3px"></div>
-      <div class="tr-thumb sk"></div>
-      <div class="tr-info">
-        <div class="sk" style="height:13px;width:${140+i*10}px;margin-bottom:6px"></div>
-        <div class="sk" style="height:11px;width:90px"></div>
-      </div>
-      <div class="sk" style="height:11px;width:80px"></div>
-      <div class="sk" style="height:11px;width:35px;margin-left:auto"></div>
-    </div>`).join('');
-
-  try {
-    const res = await fetch(`${SERVER}/api/ai-dj`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mood, history: listeningHistory })
-    });
-    if (!res.ok) throw new Error('API Error');
-    const tracks = await res.json();
-    if (!tracks || !tracks.length) throw new Error('No tracks returned');
-
-    status.className = 'dj-status';
-    status.innerHTML = `<span style="color:var(--green)">Playlist generated successfully. Playing first song...</span>`;
-    
-    // Render the list
-    list.innerHTML = tracks.map((item, idx) => `
-    <div class="track-row fu" style="animation-delay:${idx*30}ms" onclick='loadTrack(${JSON.stringify(item).replace(/"/g,'&quot;')})'>
-      <div class="tr-num">${idx+1}</div>
-      <div class="tr-eq" style="display:none"><div class="eq"><span></span><span></span><span></span></div></div>
-      <div class="tr-play-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path class="tr-play-path" d="M8 5v14l11-7z"/></svg></div>
-      <img class="tr-thumb" src="${item.thumbnail}" loading="lazy" onerror="this.style.background='#333'"/>
-      <div class="tr-info">
-        <div class="tr-title">${esc(item.title)}</div>
-        <div class="tr-artist">${esc(item.uploader)}</div>
-      </div>
-      <div class="tr-album">${esc(item.uploader)}</div>
-      <div class="tr-dur">${fmt(item.duration)}</div>
-      <button class="tr-like ${isLiked(item.id)?'liked':''}" data-id="${item.id}"
-        onclick="event.stopPropagation();toggleLike(${JSON.stringify(item).replace(/"/g,'&quot;')})" title="Save to Liked Songs">
-        <svg viewBox="0 0 24 24"><path d=""/> </svg>
-      </button>
-      <button class="tr-more" onclick="event.stopPropagation();showCtxMenu(event,${JSON.stringify(item).replace(/"/g,'&quot;')})" title="More options">
-        <svg viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
-      </button>
-    </div>`).join('');
-
-    // Update heart icons safely
-    tracks.forEach(item => syncHeartIcons(item.id));
-
-    // Play first track!
-    if (tracks[0]) loadTrack(tracks[0]);
-
-  } catch (err) {
-    status.className = 'dj-status';
-    status.style.color = '#e22134';
-    status.textContent = 'Oops, something went wrong. Try a different mood.';
-    console.error(err);
-    list.innerHTML = '';
-    header.style.display = 'none';
-  } finally {
-    btn.style.pointerEvents = '';
-    btn.style.opacity = '1';
-  }
-}
 
 
 /* ════════════════════════════════════
@@ -1783,7 +1270,7 @@ async function doSearch(q) {
   setNavActive(1);
   document.getElementById('homeSection').style.display = 'none';
   document.getElementById('playlistSection').style.display = 'none';
-  document.getElementById('aiDjSection').style.display = 'none';
+
   const sec = document.getElementById('searchSection');
   sec.style.display = '';
   document.getElementById('resultsTitle').textContent = `Results for "${q}"`;
@@ -1871,9 +1358,6 @@ async function loadTrack(item) {
   currentTrack  = item;
   totalDuration = item.duration || 0;
 
-  // Track listening history
-  const historyString = `${item.title} by ${item.uploader}`;
-  listeningHistory = [historyString, ...listeningHistory.filter(h => h !== historyString)].slice(0, 15);
 
   // Player bar
   document.getElementById('plThumb').src = item.thumbnail;
@@ -2114,7 +1598,7 @@ function startTick() {
   tickId = setInterval(() => {
     if (!isPlaying) return;
     const t = getSongTime();
-    if (totalDuration && t >= totalDuration - 0.3) { hardStop(); updateUI(totalDuration); return; }
+    if (totalDuration && t >= totalDuration - 0.3) { onSongEnd(); updateUI(totalDuration); return; }
     updateUI(t);
     scheduleLoop();
     if (actx) nodes = nodes.filter(n => n.startAt + n.dur > actx.currentTime - 1);
@@ -2248,6 +1732,387 @@ if ('serviceWorker' in navigator) {
     });
   });
 }
+/* ════════════════════════════════════
+   SMART QUEUE & AUTOPLAY ENGINE
+════════════════════════════════════ */
+
+// Called when current song finishes naturally
+function onSongEnd() {
+  hardStop();
+  if (document.getElementById('repeatBtn').classList.contains('on') && currentTrack) {
+    // Repeat mode: replay same song
+    setTimeout(() => loadTrack(currentTrack), 100);
+    return;
+  }
+  if (autoplayOn && autoQueue.length > 0) {
+    const next = autoQueue.shift();
+    loadTrack(next);
+  }
+}
+
+// ── Next / Prev ────────────────────────────────────
+function nextTrack() {
+  if (!currentTrack) return;
+  if (autoQueue.length > 0) {
+    if (currentTrack) playHistory.unshift(currentTrack);
+    const next = autoQueue.shift();
+    loadTrack(next);
+  } else {
+    // No queue yet: skip 30s (old behavior fallback)
+    skip(30);
+  }
+}
+
+function prevTrack() {
+  if (!currentTrack) return;
+  // If more than 3s in → restart current song
+  if (getSongTime() > 3) {
+    startFrom(0);
+    return;
+  }
+  // Otherwise go to previous
+  if (playHistory.length > 0) {
+    const prev = playHistory.shift();
+    // Push current back to front of queue
+    autoQueue.unshift(currentTrack);
+    loadTrack(prev);
+  } else {
+    startFrom(0); // no history, restart
+  }
+}
+
+// ── Recommendation Fetcher ─────────────────────────
+
+// Extract the real performing artist from the song title
+// Title formats: "Song - Artist | Channel", "Song | Artist | Channel", "Song - Artist ft. X"
+function extractArtist(item) {
+  const title = item.title;
+
+  // Try "Song - Artist | ..." format
+  const dashParts = title.split('-');
+  if (dashParts.length >= 2) {
+    const after = dashParts[1].split('|')[0].split('&')[0].split('ft.')[0].split('Ft.')[0].trim();
+    // Must be a plausible artist name: 2-40 chars, not just junk words
+    if (after.length >= 2 && after.length <= 40 &&
+        !/official|video|audio|lyrics|full|song|hd|4k|super|movie/i.test(after)) {
+      return after;
+    }
+  }
+
+  // Try "Song | Artist | ..." format
+  const pipeParts = title.split('|');
+  if (pipeParts.length >= 2) {
+    const after = pipeParts[1].trim();
+    if (after.length >= 2 && after.length <= 40 &&
+        !/official|video|audio|lyrics|full|song|hd|4k/i.test(after)) {
+      return after;
+    }
+  }
+
+  // Fallback: use uploader but strip generic channel suffixes
+  return item.uploader
+    .replace(/\s*(VEVO|Official|Channel|Music|Records|Company|Entertainment|Films|Studios|India)\s*/gi, '')
+    .trim() || item.uploader;
+}
+
+// Get first N significant words from a title for similarity comparison
+function titleFingerprint(title) {
+  return title
+    .toLowerCase()
+    .split('|')[0].split('-')[0].split('(')[0]   // take only part before separators
+    .replace(/official|video|audio|lyric|lyrical|full|song|hd|4k|super|movie|ft\.|feat\./gi, '')
+    .replace(/[^a-z0-9\s]/g, '')
+    .trim()
+    .split(/\s+/)
+    .filter(w => w.length > 2)   // drop small words
+    .slice(0, 3)                  // first 3 significant words
+    .join(' ');
+}
+
+// Returns true if result is too similar to the currently playing song (just a different version)
+function isTooSimilar(currentItem, resultItem) {
+  const fp1 = titleFingerprint(currentItem.title);
+  const fp2 = titleFingerprint(resultItem.title);
+  if (!fp1 || !fp2) return false;
+
+  const words1 = fp1.split(' ');
+  const words2 = fp2.split(' ');
+
+  // Count overlapping significant words
+  const overlap = words1.filter(w => w.length > 2 && words2.includes(w));
+  // If 2+ main words match → almost certainly same song (lyrical, slowed, full video etc.)
+  return overlap.length >= 2;
+}
+
+function buildRecQuery(item) {
+  const artist = extractArtist(item);
+  // "Artist songs" → returns genuinely different songs by same artist
+  return `${artist} songs`;
+}
+
+async function fetchRecommendations(item) {
+  if (fetchingRecs) return;
+  fetchingRecs = true;
+  try {
+    const q = buildRecQuery(item);
+    console.log('[queue] fetching recs for:', q);
+    const results = await fetch(`${SERVER}/search?q=${encodeURIComponent(q)}`).then(r => r.json());
+    if (!Array.isArray(results)) return;
+
+    const queuedIds = new Set(autoQueue.map(t => t.id));
+    const historyIds = new Set(playHistory.map(t => t.id));
+
+    const fresh = results.filter(t =>
+      t.id !== item.id &&           // not the current song
+      !queuedIds.has(t.id) &&       // not already queued
+      !historyIds.has(t.id) &&      // not in history
+      !isTooSimilar(item, t)        // not a different version of same song
+    );
+
+    autoQueue.push(...fresh);
+
+    // If we got nothing useful (very rare), try a broader genre fallback
+    if (fresh.length === 0 && autoQueue.length === 0) {
+      const fallback = await fetch(`${SERVER}/search?q=${encodeURIComponent(item.uploader + ' hits')}`).then(r => r.json());
+      if (Array.isArray(fallback)) {
+        const freshFallback = fallback.filter(t =>
+          t.id !== item.id && !queuedIds.has(t.id) && !isTooSimilar(item, t)
+        );
+        autoQueue.push(...freshFallback);
+      }
+    }
+
+    renderQueuePanel();
+  } catch(e) {
+    console.warn('[queue] fetch failed:', e.message);
+  } finally {
+    fetchingRecs = false;
+  }
+}
+
+// Called by renderList when search results come in → those become the initial queue
+function setSearchQueue(items) {
+  // Don't overwrite if queue is already populated
+  if (autoQueue.length > 2) return;
+  autoQueue = items.filter(t => !currentTrack || t.id !== currentTrack.id);
+  renderQueuePanel();
+}
+
+// ── Queue Panel UI ─────────────────────────────────
+function toggleQueuePanel() {
+  queuePanelOpen = !queuePanelOpen;
+  document.getElementById('queuePanel').classList.toggle('open', queuePanelOpen);
+  document.getElementById('queueBtn').classList.toggle('queue-active', queuePanelOpen);
+  if (queuePanelOpen) renderQueuePanel();
+}
+
+function toggleAutoplay() {
+  autoplayOn = !autoplayOn;
+  const badge = document.getElementById('autoplayBadge');
+  badge.classList.toggle('on', autoplayOn);
+  document.getElementById('autoplayLabel').textContent = autoplayOn ? 'Autoplay On' : 'Autoplay Off';
+}
+
+function renderQueuePanel() {
+  // Update "Now Playing" section
+  const nowSection = document.getElementById('queueNowSection');
+  if (currentTrack) {
+    nowSection.style.display = '';
+    document.getElementById('queueNowThumb').src = currentTrack.thumbnail;
+    document.getElementById('queueNowTitle').textContent = currentTrack.title;
+    document.getElementById('queueNowArtist').textContent = currentTrack.uploader;
+  } else {
+    nowSection.style.display = 'none';
+  }
+
+  // Update count label
+  const countLabel = document.getElementById('queueCountLabel');
+  countLabel.textContent = autoQueue.length > 0 ? `${autoQueue.length} songs` : '';
+
+  // Render queue list
+  const list = document.getElementById('queueList');
+
+  if (fetchingRecs && autoQueue.length === 0) {
+    list.innerHTML = `<div class="queue-loading">
+      <div class="queue-loading-dot"></div>
+      <div class="queue-loading-dot"></div>
+      <div class="queue-loading-dot"></div>
+      <span>Finding similar songs...</span>
+    </div>`;
+    return;
+  }
+
+  if (autoQueue.length === 0) {
+    list.innerHTML = `<div style="padding:24px 16px;color:var(--t3);font-size:13px;text-align:center">
+      No upcoming songs yet.<br>Play something to get recommendations.
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = autoQueue.map((item, idx) => `
+    <div class="queue-item fu" style="animation-delay:${idx * 25}ms" onclick="playFromQueue(${idx})">
+      <div class="queue-item-num">${idx + 1}</div>
+      <img src="${item.thumbnail}" loading="lazy" onerror="this.style.background='#333'" alt=""/>
+      <div class="queue-item-info">
+        <div class="queue-item-title">${esc(item.title)}</div>
+        <div class="queue-item-artist">${esc(item.uploader)}</div>
+      </div>
+      <div class="queue-item-dur">${fmt(item.duration)}</div>
+    </div>`).join('');
+}
+
+function playFromQueue(idx) {
+  if (idx < 0 || idx >= autoQueue.length) return;
+  if (currentTrack) playHistory.unshift(currentTrack);
+  const track = autoQueue.splice(idx, 1)[0];
+  loadTrack(track);
+}
+
+// Hook into loadTrack to update queue panel and fetch recommendations
+// We wrap the existing loadTrack call result
+const _origLoadTrack_queue = loadTrack;
+// Override after definition — patch queue state when a track loads
+(function patchLoadTrack() {
+  const orig = window.loadTrack;
+  window.loadTrack = async function(item) {
+    // Add current to history before switching
+    if (currentTrack && currentTrack.id !== item.id) {
+      playHistory.unshift(currentTrack);
+      if (playHistory.length > 30) playHistory.length = 30;
+    }
+    // Remove item from autoQueue if it's there
+    autoQueue = autoQueue.filter(t => t.id !== item.id);
+
+    await orig(item);
+
+    // Update queue panel
+    renderQueuePanel();
+
+    // Fetch recommendations in background (non-blocking)
+    // Delay slightly so playback starts first
+    setTimeout(() => {
+      // If queue is running low, fetch more
+      if (autoQueue.length < 3) {
+        fetchingRecs = false; // allow re-fetch
+        const loadingEl = document.getElementById('queueList');
+        if (loadingEl && autoQueue.length === 0) {
+          loadingEl.innerHTML = `<div class="queue-loading">
+            <div class="queue-loading-dot"></div>
+            <div class="queue-loading-dot"></div>
+            <div class="queue-loading-dot"></div>
+            <span>Finding similar songs...</span>
+          </div>`;
+        }
+        fetchRecommendations(item);
+      }
+    }, 800);
+  };
+})();
+
 </script>
+</body>
+</html>
+
+<script>
+/* ── UI sync helpers for new design ── */
+
+// Sync the footer track info & now-playing banner whenever loadTrack fires
+const _origUpdateNowPlaying = () => {};
+const _footerTitleEl = document.getElementById('footerTitle');
+const _footerArtistEl = document.getElementById('footerArtist');
+const _nowPlayBanner = document.getElementById('nowPlayingBanner');
+const _nowPlayTitle = document.getElementById('nowPlayTitle');
+const _nowPlayArtist = document.getElementById('nowPlayArtist');
+
+// Patch plTitle / plArtist updates to also update banner + footer
+const _plTitleOrig = Object.getOwnPropertyDescriptor(HTMLElement.prototype,'textContent');
+// Simple MutationObserver approach:
+const _syncObs = new MutationObserver(() => {
+  const title = document.getElementById('plTitle').textContent;
+  const artist = document.getElementById('plArtist').textContent;
+  const isIdle = document.getElementById('plTitle').classList.contains('idle');
+
+  if (_nowPlayBanner) _nowPlayBanner.style.display = isIdle ? 'none' : '';
+  if (_nowPlayTitle) _nowPlayTitle.textContent = title;
+  if (_nowPlayArtist) _nowPlayArtist.textContent = artist;
+  if (_footerTitleEl) _footerTitleEl.textContent = isIdle ? 'Nothing playing' : title;
+  if (_footerArtistEl) _footerArtistEl.textContent = isIdle ? '' : artist;
+});
+const _plTitleEl = document.getElementById('plTitle');
+const _plArtistEl = document.getElementById('plArtist');
+if (_plTitleEl) _syncObs.observe(_plTitleEl, {characterData:true,childList:true,subtree:true});
+if (_plArtistEl) _syncObs.observe(_plArtistEl, {characterData:true,childList:true,subtree:true});
+
+// Sync time displays (footer timers also update timeCurrent / timeTotal via banner)
+const _syncTimeObs = new MutationObserver(() => {
+  const tc = document.getElementById('timeCurrent').textContent;
+  const tt = document.getElementById('timeTotal').textContent;
+  const bannerCur = document.getElementById('timeCurrentBanner');
+  const bannerTot = document.getElementById('timeTotalBanner');
+  if (bannerCur) bannerCur.textContent = tc;
+  if (bannerTot) bannerTot.textContent = tt;
+});
+const _tcEl = document.getElementById('timeCurrent');
+const _ttEl = document.getElementById('timeTotal');
+if (_tcEl) _syncTimeObs.observe(_tcEl, {characterData:true,childList:true,subtree:true});
+if (_ttEl) _syncTimeObs.observe(_ttEl, {characterData:true,childList:true,subtree:true});
+
+// volBar hover
+document.getElementById('volBar').addEventListener('mouseenter', () => document.getElementById('volKnob').style.opacity='1');
+document.getElementById('volBar').addEventListener('mouseleave', () => document.getElementById('volKnob').style.opacity='0');
+
+// setNavActive needs navLibrary too (index 2)
+const _origSetNavActive = setNavActive;
+window.setNavActive = function(idx) {
+  document.querySelectorAll('.nav-item').forEach((n,i) => n.classList.toggle('active', i===idx));
+};
+
+// Sync peek cards with autoQueue and playHistory
+setInterval(() => {
+  const pCard = document.getElementById('prevPeekCard');
+  const nCard = document.getElementById('nextPeekCard');
+
+  if (pCard && typeof playHistory !== 'undefined' && playHistory.length > 0) {
+    const p = playHistory[0];
+    document.getElementById('prevPeekTitle').textContent = p.title || p.name || '';
+    document.getElementById('prevPeekArtist').textContent = p.uploader || p.channel || p.artist || '';
+    document.getElementById('prevPeekThumb').src = p.thumbnail || p.thumb || '';
+    document.getElementById('prevPeekThumb').style.display = 'block';
+    pCard.dataset.active = '1';
+    if(pCard.matches(':not(:hover)')) {
+      pCard.style.opacity = '.6';
+      pCard.style.transform = 'scale(.9) translateX(30px)';
+    }
+  } else if (pCard) {
+    document.getElementById('prevPeekTitle').textContent = '';
+    document.getElementById('prevPeekArtist').textContent = '';
+    document.getElementById('prevPeekThumb').style.display = 'none';
+    pCard.dataset.active = '0';
+    pCard.style.opacity = '0';
+    pCard.style.transform = 'scale(.85) translateX(20px)';
+  }
+
+  if (nCard && typeof autoQueue !== 'undefined' && autoQueue.length > 0) {
+    const n = autoQueue[0];
+    document.getElementById('nextPeekTitle').textContent = n.title || n.name || '';
+    document.getElementById('nextPeekArtist').textContent = n.uploader || n.channel || n.artist || '';
+    document.getElementById('nextPeekThumb').src = n.thumbnail || n.thumb || '';
+    document.getElementById('nextPeekThumb').style.display = 'block';
+    nCard.dataset.active = '1';
+    if(nCard.matches(':not(:hover)')) {
+      nCard.style.opacity = '.6';
+      nCard.style.transform = 'scale(.9) translateX(-30px)';
+    }
+  } else if (nCard) {
+    document.getElementById('nextPeekTitle').textContent = '';
+    document.getElementById('nextPeekArtist').textContent = '';
+    document.getElementById('nextPeekThumb').style.display = 'none';
+    nCard.dataset.active = '0';
+    nCard.style.opacity = '0';
+    nCard.style.transform = 'scale(.85) translateX(-20px)';
+  }
+}, 500);
+</script>
+
 </body>
 </html>

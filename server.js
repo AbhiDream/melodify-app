@@ -233,49 +233,7 @@ app.get("/info/:videoId", (req, res) => {
     });
 });
 
-// ── AI DJ ─────────────────────────────────────────────────────────────────────
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
-app.post("/api/ai-dj", async (req, res) => {
-  const { mood, history } = req.body;
-  if (!mood) return res.status(400).json({ error: "No mood provided" });
-  try {
-    const prompt = `You are a Spotify AI DJ.
-User Mood: ${mood}
-Recent Listens: ${history?.length ? history.join(", ") : "None"}
-Recommend exactly 10 real popular songs matching this mood. Prefer Indian/Hindi/Punjabi and Global hits.
-Output ONLY a JSON array, no markdown:
-[{"title":"Song","artist":"Artist","search_query":"Song Artist official audio"}]`;
-    const apiRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: [{ role: "user", content: prompt }] }),
-    });
-    if (!apiRes.ok) throw new Error(`Groq ${apiRes.status}`);
-    const data = await apiRes.json();
-    let text = data.choices[0].message.content.trim().replace(/^```(json)?/, "").replace(/```$/, "").trim();
-    const recs = JSON.parse(text);
-    const promises = recs.map(song => new Promise(resolve => {
-      const q = song.search_query.replace(/"/g, '');
-      // Check search cache first
-      const cached = searchCache.get(q);
-      if (cached && Date.now() - cached.ts < SEARCH_TTL && cached.results[0]) return resolve(cached.results[0]);
-      exec(`yt-dlp "ytsearch1:${q}" --flat-playlist --dump-json --no-download --no-warnings`,
-        { maxBuffer: 5 * 1024 * 1024, timeout: 20000 }, (err, stdout) => {
-          if (err || !stdout.trim()) return resolve(null);
-          try {
-            const d = JSON.parse(stdout.trim());
-            resolve({ id: d.id, title: d.title, duration: d.duration || 0,
-              thumbnail: d.thumbnail || `https://i.ytimg.com/vi/${d.id}/mqdefault.jpg`,
-              uploader: d.uploader || d.channel || "Unknown" });
-          } catch(e) { resolve(null); }
-        });
-    }));
-    res.json((await Promise.all(promises)).filter(Boolean));
-  } catch(error) {
-    console.error("AI DJ Error:", error.message);
-    res.status(500).json({ error: "Failed to generate playlist" });
-  }
-});
+
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🎵 Melodify running on http://localhost:${PORT}`));

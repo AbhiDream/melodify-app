@@ -1,4 +1,4 @@
-const CACHE_NAME = 'melodify-v3';
+const CACHE_NAME = 'melodify-v11';
 const ASSETS = ['/', '/index.html', '/manifest.json', '/icon.png'];
 
 // On install, cache core assets and immediately activate
