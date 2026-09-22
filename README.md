@@ -20,7 +20,8 @@
 
 ## ✨ What's New in v2.0?
 
-- **📱 Redesigned Premium "Glassmorphism" UI**: A beautiful, fresh light-theme UI with frosted glass effects, fluid animations, and a responsive layout for mobile and desktop (PWA ready).
+- **📱 Redesigned Premium "Glassmorphism" UI**: A beautiful, fresh light-theme UI with frosted glass effects, fluid animations, and a responsive layout for mobile and desktop (PWA ready).<br><br>
+  <img src="https://raw.githubusercontent.com/AbhiDream/melodify-app/main/public/screenshot-player.png" alt="Melodify Player Close-up" width="600" style="border-radius: 12px; margin-bottom: 15px;">
 - **🎶 Smart Autoplay Queue**: Plays music non-stop! Our new recommendation engine dynamically queues up similar songs (based on artist and title fingerprints) so the music never stops.
 - **✨ Dynamic Peek Cards**: Gorgeous, interactive "Up Next" and "Previous" album peek cards that hover seamlessly behind the main player, syncing perfectly with your smart queue.
 - **🚀 Advanced Chunk Streaming Engine**: Streams audio from YouTube dynamically in **20-second chunks** — saving bandwidth and loading instantly (exactly like adaptive bitrate streaming).
