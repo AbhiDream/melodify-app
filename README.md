@@ -24,8 +24,16 @@
   <img src="https://raw.githubusercontent.com/AbhiDream/melodify-app/main/public/screenshot-player.png" alt="Melodify Player Close-up" width="600" style="border-radius: 12px; margin-bottom: 15px;">
 - **🎶 Smart Autoplay Queue**: Plays music non-stop! Our new recommendation engine dynamically queues up similar songs (based on artist and title fingerprints) so the music never stops.
 - **✨ Dynamic Peek Cards**: Gorgeous, interactive "Up Next" and "Previous" album peek cards that hover seamlessly behind the main player, syncing perfectly with your smart queue.<br><br>
-  <img src="https://raw.githubusercontent.com/AbhiDream/melodify-app/main/public/screenshot-prev.png" alt="Previous Peek Card" width="49%" style="border-radius: 12px; margin-bottom: 15px;">
-  <img src="https://raw.githubusercontent.com/AbhiDream/melodify-app/main/public/screenshot-next.png" alt="Up Next Peek Card" width="49%" style="border-radius: 12px; margin-bottom: 15px;">
+  <table>
+    <tr>
+      <td width="50%">
+        <img src="https://raw.githubusercontent.com/AbhiDream/melodify-app/main/public/screenshot-prev.png?v=2" alt="Previous Peek Card" style="border-radius: 12px; width: 100%;">
+      </td>
+      <td width="50%">
+        <img src="https://raw.githubusercontent.com/AbhiDream/melodify-app/main/public/screenshot-next.png?v=2" alt="Up Next Peek Card" style="border-radius: 12px; width: 100%;">
+      </td>
+    </tr>
+  </table>
 - **🚀 Advanced Chunk Streaming Engine**: Streams audio from YouTube dynamically in **20-second chunks** — saving bandwidth and loading instantly (exactly like adaptive bitrate streaming).
 - **⚡ Zero-Lag Seeking**: Keeps chunks in cache and pre-fetches ahead. Seek backwards and forwards instantly without buffering!
 - **🔥 Trending Dashboard**: Live integration with YouTube's trending music feed.
